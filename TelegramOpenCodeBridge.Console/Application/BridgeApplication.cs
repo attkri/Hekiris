@@ -582,7 +582,15 @@ public sealed class BridgeApplication
                 {
                     int commandNumber = index + 1;
                     RequestRuntimeState state = runtimeStatus.CommandStates[commandNumber];
-                    builder.AppendLine($"- /c{commandNumber} {_options.Commands[index].Title}: {FormatRuntimeState(state)}");
+                    ConfiguredCommandOptions command = _options.Commands[index];
+                    CommandTimeLoopOptions? timeLoop = command.TimeLoop;
+
+                    string loopStatus = timeLoop?.Enabled == true ? "an" : "aus";
+                    string interval = string.IsNullOrWhiteSpace(timeLoop?.Interval) ? "-" : timeLoop!.Interval;
+                    string lastRun = timeLoop?.LastRun is null ? "-" : timeLoop.LastRun.Value.ToString("yyyy-MM-dd HH:mm:ss");
+
+                    builder.AppendLine(
+                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Loop {loopStatus} | Intervall {interval} | LastRun {lastRun}");
                 }
             }
 
@@ -839,8 +847,8 @@ public sealed class BridgeApplication
             }
 
             _console.WriteInfo("Stopp angefordert. Laufende Aufträge werden beendet.");
-            _pollingCancellationTokenSource.Cancel();
             await SendBridgeStatusNotificationAsync("Die Bridge wird beendet. Neue Nachrichten werden nicht mehr angenommen.", CancellationToken.None);
+            _pollingCancellationTokenSource.Cancel();
             await _chatRequestQueue.BeginShutdownAsync(CancellationToken.None);
         }
     }
