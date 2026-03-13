@@ -363,12 +363,34 @@ public sealed class BridgeApplication
                     await RequestStopAsync();
                     return;
                 case BridgeChatCommandType.ShowStatus:
-                    await _telegramClient.SendMessageAsync(message.Chat.Id, BuildStatusText(), CancellationToken.None);
+                    await _telegramClient.SendMessageAsync(message.Chat.Id, BuildStatusText(message.Chat.Id), CancellationToken.None);
                     _console.WriteInfo($"Status an Chat {message.Chat.Id} gesendet.");
                     return;
                 case BridgeChatCommandType.ShowCommands:
                     await _telegramClient.SendMessageAsync(message.Chat.Id, BuildConfiguredCommandsText(), CancellationToken.None);
                     _console.WriteInfo($"Kommandoübersicht an Chat {message.Chat.Id} gesendet.");
+                    return;
+                case BridgeChatCommandType.StopConfiguredCommand:
+                    if (chatCommand.CommandIndex is null || chatCommand.CommandIndex.Value >= _options.Commands.Count)
+                    {
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, "Dieses konfigurierte Kommando gibt es nicht. Nutze /sc für die Liste.", CancellationToken.None);
+                        _console.WriteWarning($"Ungültiges Stopp-Kommando /c{(chatCommand.CommandIndex ?? 0) + 1}s in Chat {message.Chat.Id} angefordert.");
+                        return;
+                    }
+
+                    int commandNumber = chatCommand.CommandIndex.Value + 1;
+                    bool stopped = await _chatRequestQueue.TryAbortActiveConfiguredCommandAsync(message.Chat.Id, commandNumber, CancellationToken.None);
+                    if (stopped)
+                    {
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Kommando /c{commandNumber} wurde gestoppt.", CancellationToken.None);
+                        _console.WriteInfo($"Konfiguriertes Kommando /c{commandNumber} in Chat {message.Chat.Id} gestoppt.");
+                    }
+                    else
+                    {
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Kommando /c{commandNumber} läuft aktuell nicht.", CancellationToken.None);
+                        _console.WriteInfo($"Konfiguriertes Kommando /c{commandNumber} in Chat {message.Chat.Id} war nicht aktiv.");
+                    }
+
                     return;
                 case BridgeChatCommandType.RunConfiguredCommand:
                     if (chatCommand.CommandIndex is null || chatCommand.CommandIndex.Value >= _options.Commands.Count)
@@ -428,11 +450,14 @@ public sealed class BridgeApplication
         private async Task ProcessChatRequestAsync(ChatRequest request, CancellationToken cancellationToken)
         {
             bool isConfiguredCommand = request.ConfiguredCommandNumber is not null;
+            string commandLabel = isConfiguredCommand
+                ? $"/c{request.ConfiguredCommandNumber} {request.ConfiguredCommandTitle}"
+                : string.Empty;
             string inboundConsoleText = isConfiguredCommand
-                ? $"Konfiguriertes Kommando /c{request.ConfiguredCommandNumber}: {request.ConfiguredCommandTitle}"
+                ? $"Konfiguriertes Kommando {commandLabel}"
                 : request.Text;
             string outboundConsoleText = isConfiguredCommand
-                ? $"Konfiguriertes Kommando /c{request.ConfiguredCommandNumber} an OpenCode gesendet."
+                ? $"Konfiguriertes Kommando {commandLabel} an OpenCode gesendet."
                 : $"Anfrage an OpenCode gesendet: \"{request.Text}\"";
 
             _console.WriteTranscript(
@@ -462,11 +487,17 @@ public sealed class BridgeApplication
                     response = "OpenCode hat keine Textantwort geliefert.";
                 }
 
+                string telegramResponse = isConfiguredCommand
+                    ? $"[{commandLabel}]\n\n{response}"
+                    : response;
+
                 _console.WriteTranscript(
                     "AGENT",
-                    response,
-                    $"OpenCode-Antwort für Chat {request.ChatId} empfangen.");
-                await _telegramClient.SendMessageAsync(request.ChatId, response, CancellationToken.None);
+                    telegramResponse,
+                    isConfiguredCommand
+                        ? $"OpenCode-Antwort für {commandLabel} in Chat {request.ChatId} empfangen."
+                        : $"OpenCode-Antwort für Chat {request.ChatId} empfangen.");
+                await _telegramClient.SendMessageAsync(request.ChatId, telegramResponse, CancellationToken.None);
                 _console.WriteInfo($"Telegram-Antwort an Chat {request.ChatId} gesendet.");
             }
             catch (Exception exception)
@@ -474,6 +505,11 @@ public sealed class BridgeApplication
                 string userMessage = IsStopping
                     ? "Die Bridge wird beendet. Der laufende Auftrag wurde abgebrochen."
                     : "Die Anfrage an OpenCode ist fehlgeschlagen. Bitte versuche es erneut.";
+
+                if (isConfiguredCommand)
+                {
+                    userMessage = $"[{commandLabel}]\n\n{userMessage}";
+                }
 
                 if (IsPotentialOpenCodeOutage(exception, cancellationToken))
                 {
@@ -490,16 +526,42 @@ public sealed class BridgeApplication
             }
         }
 
-        private string BuildStatusText()
+        private string BuildStatusText(long chatId)
         {
+            ChatRuntimeStatusSnapshot runtimeStatus = _chatRequestQueue.GetChatRuntimeStatus(chatId, _options.Commands.Count);
             StringBuilder builder = new();
             builder.AppendLine("Bridge-Status:");
             builder.AppendLine($"- Bridge: {(IsStopping ? "wird beendet" : "läuft")}");
             builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "erreichbar" : "nicht erreichbar")}");
+            builder.AppendLine($"- Grund-Session: {FormatRuntimeState(runtimeStatus.BaseSessionState)}");
+
+            if (runtimeStatus.ActiveRequest is not null)
+            {
+                builder.AppendLine(runtimeStatus.ActiveRequest.ConfiguredCommandNumber is null
+                    ? "- Aktiver Auftrag: Grund-Session"
+                    : $"- Aktiver Auftrag: /c{runtimeStatus.ActiveRequest.ConfiguredCommandNumber} {runtimeStatus.ActiveRequest.ConfiguredCommandTitle}");
+            }
+            else
+            {
+                builder.AppendLine("- Aktiver Auftrag: keiner");
+            }
+
+            if (_options.Commands.Count > 0)
+            {
+                builder.AppendLine();
+                builder.AppendLine("Kommandos:");
+
+                for (int index = 0; index < _options.Commands.Count; index++)
+                {
+                    int commandNumber = index + 1;
+                    RequestRuntimeState state = runtimeStatus.CommandStates[commandNumber];
+                    builder.AppendLine($"- /c{commandNumber} {_options.Commands[index].Title}: {FormatRuntimeState(state)}");
+                }
+            }
+
             builder.AppendLine();
-            builder.AppendLine("Konfiguration:");
-            builder.Append(ConfigMasker.ToSanitizedJson(_options));
-            return builder.ToString();
+            builder.AppendLine("Hinweis: /sc zeigt die verfügbaren Kommandos an.");
+            return builder.ToString().TrimEnd();
         }
 
         private string BuildConfiguredCommandsText()
@@ -517,7 +579,20 @@ public sealed class BridgeApplication
                 builder.AppendLine($"{index + 1}. {_options.Commands[index].Title} (/c{index + 1})");
             }
 
+            builder.AppendLine();
+            builder.AppendLine("/cNs stoppt ein laufendes Commando");
+
             return builder.ToString().TrimEnd();
+        }
+
+        private static string FormatRuntimeState(RequestRuntimeState state)
+        {
+            return state switch
+            {
+                RequestRuntimeState.Running => "läuft",
+                RequestRuntimeState.Queued => "wartet",
+                _ => "frei",
+            };
         }
 
         private async Task RejectChatRequestAsync(ChatRequest request, string reason, CancellationToken cancellationToken)

@@ -10,7 +10,7 @@ Die Steuerung erfolgt über JSON-Konfiguration und die CLI-Kommandos `tocb start
 
 Beim Start und beim geordneten Beenden sendet die Bridge Statusmeldungen an die konfigurierten Telegram-Chats. Zusätzlich überwacht sie den OpenCode-Server im Hintergrund und meldet Erreichbarkeitswechsel ebenfalls an Telegram.
 
-Im Chat unterstützt die Bridge außerdem `/help`, `/stop`, `/ss`, `/sc` und konfigurierte Kommandos wie `/c1`.
+Im Chat unterstützt die Bridge außerdem `/help`, `/stop`, `/ss`, `/sc`, konfigurierte Kommandos wie `/c1` und Stop-Kommandos wie `/c1s`.
 
 Secrets bleiben außerhalb des Repos: Die App kann das Telegram-Token aus einer externen Secret-Datei einlesen und maskiert sensible Werte bei der Konfigurationsausgabe.
 
@@ -90,6 +90,8 @@ Wenn `Model` keinen Provider enthält, verwendet die Bridge standardmäßig `ope
 - `/ss` - sendet den aktuellen Bridge-Status inklusive maskierter Konfiguration
 
 - `/sc` - listet alle konfigurierten Kommandos mit `/c1`, `/c2`, ... auf
+
+- `/c1s` - stoppt ein gerade laufendes konfiguriertes Kommando gezielt
 
 ## Logging
 

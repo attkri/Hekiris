@@ -28,6 +28,15 @@ public sealed class BridgeChatCommandParserTests
     }
 
     [Fact]
+    public void Parse_ReturnsConfiguredCommandStopIndex()
+    {
+        BridgeChatCommand result = BridgeChatCommandParser.Parse("/c2s");
+
+        Assert.Equal(BridgeChatCommandType.StopConfiguredCommand, result.Type);
+        Assert.Equal(1, result.CommandIndex);
+    }
+
+    [Fact]
     public void HelpText_ContainsBaseCommands()
     {
         string text = BridgeChatHelpText.GetText();
@@ -36,5 +45,6 @@ public sealed class BridgeChatCommandParserTests
         Assert.Contains("/stop", text, StringComparison.Ordinal);
         Assert.Contains("/ss", text, StringComparison.Ordinal);
         Assert.Contains("/sc", text, StringComparison.Ordinal);
+        Assert.Contains("/cNs", text, StringComparison.Ordinal);
     }
 }

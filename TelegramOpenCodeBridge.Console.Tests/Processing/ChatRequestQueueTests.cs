@@ -81,4 +81,76 @@ public sealed class ChatRequestQueueTests
         Assert.Contains(rejections, entry => entry.StartsWith("wartend:", StringComparison.Ordinal));
         Assert.Contains(rejections, entry => entry.StartsWith("neu:", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task GetChatRuntimeStatus_ReportsBaseAndCommandStates()
+    {
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        ChatRequestQueue queue = new(
+            10,
+            async (_, _) =>
+            {
+                started.TrySetResult();
+                await release.Task;
+            },
+            (_, _, _) => Task.CompletedTask,
+            (_, _) => Task.CompletedTask,
+            true);
+
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
+        await started.Task;
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "basis", "ses_base", null, null, null), CancellationToken.None);
+
+        ChatRuntimeStatusSnapshot status = queue.GetChatRuntimeStatus(1, 2);
+
+        Assert.Equal(RequestRuntimeState.Queued, status.BaseSessionState);
+        Assert.Equal(RequestRuntimeState.Running, status.CommandStates[1]);
+        Assert.Equal(RequestRuntimeState.Free, status.CommandStates[2]);
+
+        release.TrySetResult();
+        await queue.BeginShutdownAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task TryAbortActiveConfiguredCommandAsync_AbortsMatchingCommand()
+    {
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource cancellationObserved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        List<string> abortedSessions = new();
+
+        ChatRequestQueue queue = new(
+            10,
+            async (_, cancellationToken) =>
+            {
+                started.TrySetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    cancellationObserved.TrySetResult();
+                }
+            },
+            (_, _, _) => Task.CompletedTask,
+            (request, _) =>
+            {
+                abortedSessions.Add(request.OpenCodeSessionId);
+                return Task.CompletedTask;
+            },
+            true);
+
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
+        await started.Task;
+
+        bool stopped = await queue.TryAbortActiveConfiguredCommandAsync(1, 1, CancellationToken.None);
+
+        await cancellationObserved.Task;
+        Assert.True(stopped);
+        Assert.Contains("ses_cmd", abortedSessions);
+
+        await queue.BeginShutdownAsync(CancellationToken.None);
+    }
 }

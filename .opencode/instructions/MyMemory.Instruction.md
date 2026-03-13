@@ -1,6 +1,6 @@
 # My Memory Context
 
-**Stand:** 2026-03-13 18:51
+**Stand:** 2026-03-13 20:03
 
 ## Fortschritt
 
@@ -17,6 +17,8 @@
 - Der Start-/Stop- und Offline-Monitor ist per Code umgesetzt, aber ein echtes langlaufendes Telegram-Ende-zu-Ende wurde in dieser Session nicht manuell beobachtet.
 
 - Die produktive Konfiguration liegt jetzt außerhalb des Repos unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`; Repo-Änderungen an `config.template.json` wirken erst nach Übernahme in diese Datei.
+
+- Der Chat unterstützt jetzt neben `/cN` auch `/cNs` zum gezielten Stop eines laufenden konfigurierten Kommandos; `/ss` zeigt kompakte Laufzeitstates statt der Konfiguration.
 
 **Offene Fragen:**
 
@@ -143,6 +145,24 @@
 **Verworfen:**
 
 - Frei eingegebene Prompt-Fragmente hinter `/c1` sowie eine separate Kommandoverwaltung außerhalb der JSON-Konfiguration.
+
+### Status- und Stop-Kommandos für konfigurierten Command-Lauf (2026-03-13)
+
+**Entscheidung:**
+
+- `/ss` zeigt nur noch Laufzeitstatus der Bridge, der Grund-Session und aller konfigurierten Kommandos, und `/cNs` stoppt gezielt ein laufendes Kommando.
+
+**Begründung:**
+
+- Der User wollte keinen Konfigurationsdump in `/ss`, sondern operative Zustände wie `frei`, `läuft` oder `wartet`, plus eine direkte Stop-Möglichkeit für Command-Sessions wie im UI.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs` verwaltet jetzt Pending-/Running-Status je Grund-Session und Kommando; Antworten aus Command-Sessions werden in Telegram mit `/cN <Titel>` gekennzeichnet.
+
+**Verworfen:**
+
+- Ein globales `/stop` für einzelne Kommandos sowie eine Statusausgabe mit kompletter maskierter Konfiguration.
 
 ## User-Profil
 

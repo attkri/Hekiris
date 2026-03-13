@@ -30,6 +30,15 @@ public static class BridgeChatCommandParser
             return new BridgeChatCommand(BridgeChatCommandType.ShowCommands, null);
         }
 
+        if (normalized.Length >= 4
+            && string.Equals(normalized[..2], "/c", StringComparison.OrdinalIgnoreCase)
+            && normalized.EndsWith("s", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(normalized[2..^1], out int stopCommandNumber)
+            && stopCommandNumber > 0)
+        {
+            return new BridgeChatCommand(BridgeChatCommandType.StopConfiguredCommand, stopCommandNumber - 1);
+        }
+
         if (normalized.Length >= 3
             && string.Equals(normalized[..2], "/c", StringComparison.OrdinalIgnoreCase)
             && int.TryParse(normalized[2..], out int commandNumber)
@@ -51,6 +60,7 @@ public enum BridgeChatCommandType
     Stop,
     ShowStatus,
     ShowCommands,
+    StopConfiguredCommand,
     RunConfiguredCommand,
     Unknown,
 }
