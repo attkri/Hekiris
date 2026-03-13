@@ -133,7 +133,13 @@ public sealed class BridgeApplication
             _console.WriteError($"OpenCode-Healthcheck fehlgeschlagen: {exception.Message}");
         }
 
-        foreach (string sessionId in options.Chats.Select(binding => binding.OpenCodeSessionId).Distinct(StringComparer.Ordinal))
+        IEnumerable<string> sessionIds = options.Chats
+            .Select(binding => binding.OpenCodeSessionId)
+            .Concat(options.Commands.Select(command => command.Session))
+            .Where(sessionId => !string.IsNullOrWhiteSpace(sessionId))
+            .Distinct(StringComparer.Ordinal);
+
+        foreach (string sessionId in sessionIds)
         {
             try
             {
@@ -202,6 +208,9 @@ public sealed class BridgeApplication
         private readonly ChatRequestQueue _chatRequestQueue;
         private readonly CancellationTokenSource _pollingCancellationTokenSource = new();
         private readonly OpenCodeAvailabilityTracker _openCodeAvailabilityTracker;
+        private readonly CommandTimeLoopScheduler _commandTimeLoopScheduler = new();
+        private readonly CommandTimeLoopStateStore _commandTimeLoopStateStore = new();
+        private readonly SemaphoreSlim _scheduledCommandGate = new(1, 1);
         private int _stopRequested;
         private Task? _shutdownTask;
 
@@ -230,6 +239,7 @@ public sealed class BridgeApplication
 
             long offset = 0;
             Task healthMonitorTask = MonitorOpenCodeAvailabilityAsync(_pollingCancellationTokenSource.Token);
+            Task scheduledCommandsTask = MonitorScheduledCommandsAsync(_pollingCancellationTokenSource.Token);
 
             if (_options.Runtime.SkipPendingUpdatesOnStart)
             {
@@ -238,6 +248,11 @@ public sealed class BridgeApplication
 
             string startupNotification = await DetermineStartupNotificationAsync(cancellationToken);
             await SendBridgeStatusNotificationAsync(startupNotification, CancellationToken.None);
+
+            if (_openCodeAvailabilityTracker.IsAvailable)
+            {
+                await EvaluateScheduledCommandsAsync("beim Start", cancellationToken);
+            }
 
             ConsoleCancelEventHandler handler = (_, eventArgs) =>
             {
@@ -298,6 +313,14 @@ public sealed class BridgeApplication
                 try
                 {
                     await healthMonitorTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                try
+                {
+                    await scheduledCommandsTask;
                 }
                 catch (OperationCanceledException)
                 {
@@ -379,7 +402,7 @@ public sealed class BridgeApplication
                     }
 
                     int commandNumber = chatCommand.CommandIndex.Value + 1;
-                    bool stopped = await _chatRequestQueue.TryAbortActiveConfiguredCommandAsync(message.Chat.Id, commandNumber, CancellationToken.None);
+                    bool stopped = await _chatRequestQueue.TryAbortActiveConfiguredCommandAsync(commandNumber, CancellationToken.None);
                     if (stopped)
                     {
                         await _telegramClient.SendMessageAsync(message.Chat.Id, $"Kommando /c{commandNumber} wurde gestoppt.", CancellationToken.None);
@@ -403,13 +426,15 @@ public sealed class BridgeApplication
                     ConfiguredCommandOptions configuredCommand = _options.Commands[chatCommand.CommandIndex.Value];
                     ChatRequest configuredRequest = new(
                         message.Chat.Id,
+                        new[] { message.Chat.Id },
                         message.From?.Id,
                         message.From?.Username,
                         configuredCommand.Prompt,
                         configuredCommand.Session,
                         configuredCommand.Model,
                         configuredCommand.Title,
-                        chatCommand.CommandIndex.Value + 1);
+                        chatCommand.CommandIndex.Value + 1,
+                        false);
 
                     await _chatRequestQueue.EnqueueAsync(configuredRequest, CancellationToken.None);
                     _console.WriteInfo($"Konfiguriertes Kommando /c{chatCommand.CommandIndex.Value + 1} für Chat {message.Chat.Id} eingeplant.");
@@ -422,13 +447,15 @@ public sealed class BridgeApplication
 
             ChatRequest request = new(
                 message.Chat.Id,
+                new[] { message.Chat.Id },
                 message.From?.Id,
                 message.From?.Username,
                 incomingText,
                 chatBinding.OpenCodeSessionId,
                 null,
                 null,
-                null);
+                null,
+                false);
 
             await _chatRequestQueue.EnqueueAsync(request, CancellationToken.None);
         }
@@ -497,8 +524,8 @@ public sealed class BridgeApplication
                     isConfiguredCommand
                         ? $"OpenCode-Antwort für {commandLabel} in Chat {request.ChatId} empfangen."
                         : $"OpenCode-Antwort für Chat {request.ChatId} empfangen.");
-                await _telegramClient.SendMessageAsync(request.ChatId, telegramResponse, CancellationToken.None);
-                _console.WriteInfo($"Telegram-Antwort an Chat {request.ChatId} gesendet.");
+                await SendMessageToRequestTargetsAsync(request, telegramResponse, CancellationToken.None);
+                _console.WriteInfo($"Telegram-Antwort für Auftrag aus Chat {request.ChatId} gesendet.");
             }
             catch (Exception exception)
             {
@@ -520,8 +547,8 @@ public sealed class BridgeApplication
 
                 if (!IsStopping || _options.Runtime.RejectMessagesWhenStopping)
                 {
-                    await _telegramClient.SendMessageAsync(request.ChatId, userMessage, CancellationToken.None);
-                    _console.WriteInfo($"Fehlermeldung an Chat {request.ChatId} gesendet.");
+                    await SendMessageToRequestTargetsAsync(request, userMessage, CancellationToken.None);
+                    _console.WriteInfo($"Fehlermeldung für Auftrag aus Chat {request.ChatId} gesendet.");
                 }
             }
         }
@@ -595,11 +622,103 @@ public sealed class BridgeApplication
             };
         }
 
+        private async Task SendMessageToRequestTargetsAsync(ChatRequest request, string message, CancellationToken cancellationToken)
+        {
+            await SendMessageToChatsAsync(request.ResponseChatIds, message, cancellationToken);
+        }
+
+        private async Task SendMessageToChatsAsync(IEnumerable<long> chatIds, string message, CancellationToken cancellationToken)
+        {
+            foreach (long chatId in chatIds.Distinct())
+            {
+                await _telegramClient.SendMessageAsync(chatId, message, cancellationToken);
+            }
+        }
+
+        private async Task MonitorScheduledCommandsAsync(CancellationToken cancellationToken)
+        {
+            using PeriodicTimer timer = new(TimeSpan.FromSeconds(Math.Min(_options.Runtime.OpenCodeHealthCheckIntervalSeconds, 30)));
+
+            try
+            {
+                while (await timer.WaitForNextTickAsync(cancellationToken))
+                {
+                    if (!_openCodeAvailabilityTracker.IsAvailable || IsStopping)
+                    {
+                        continue;
+                    }
+
+                    await EvaluateScheduledCommandsAsync("nach Zeitplan", cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private async Task EvaluateScheduledCommandsAsync(string reason, CancellationToken cancellationToken)
+        {
+            await _scheduledCommandGate.WaitAsync(cancellationToken);
+
+            try
+            {
+                long[] targetChatIds = _options.Chats.Select(chat => chat.TelegramChatId).Distinct().ToArray();
+                if (targetChatIds.Length == 0)
+                {
+                    return;
+                }
+
+                for (int index = 0; index < _options.Commands.Count; index++)
+                {
+                    ConfiguredCommandOptions command = _options.Commands[index];
+                    RequestRuntimeState state = _chatRequestQueue.GetCommandRuntimeState(index + 1);
+
+                    if (!_commandTimeLoopScheduler.IsDue(command, state))
+                    {
+                        continue;
+                    }
+
+                    ChatRequest scheduledRequest = new(
+                        targetChatIds[0],
+                        targetChatIds,
+                        null,
+                        "scheduler",
+                        command.Prompt,
+                        command.Session,
+                        command.Model,
+                        command.Title,
+                        index + 1,
+                        true);
+
+                    bool enqueued = await _chatRequestQueue.EnqueueAsync(scheduledRequest, cancellationToken);
+                    if (!enqueued)
+                    {
+                        _console.WriteWarning($"Geplantes Kommando /c{index + 1} {command.Title} konnte nicht eingeplant werden.");
+                        continue;
+                    }
+
+                    DateTime lastRun = _commandTimeLoopScheduler.GetCurrentTime();
+                    await _commandTimeLoopStateStore.UpdateLastRunAsync(index, lastRun, cancellationToken);
+                    command.TimeLoop ??= new CommandTimeLoopOptions();
+                    command.TimeLoop.LastRun = lastRun;
+                    _console.WriteInfo($"TimeLoop-LastRun für /c{index + 1} {command.Title} auf {lastRun:yyyy-MM-dd HH:mm:ss} aktualisiert.");
+
+                    string notification = $"Kommando /c{index + 1} {command.Title} wurde automatisch abgesetzt ({reason}).";
+                    await SendMessageToChatsAsync(targetChatIds, notification, cancellationToken);
+                    _console.WriteInfo(notification);
+                }
+            }
+            finally
+            {
+                _scheduledCommandGate.Release();
+            }
+        }
+
         private async Task RejectChatRequestAsync(ChatRequest request, string reason, CancellationToken cancellationToken)
         {
             _console.WriteInfo($"Chat {request.ChatId}: {reason}");
-            await _telegramClient.SendMessageAsync(request.ChatId, reason, cancellationToken);
-            _console.WriteInfo($"Systemmeldung an Chat {request.ChatId} gesendet.");
+            await SendMessageToRequestTargetsAsync(request, reason, cancellationToken);
+            _console.WriteInfo($"Systemmeldung für Auftrag aus Chat {request.ChatId} gesendet.");
         }
 
         private async Task AbortActiveRequestAsync(ChatRequest request, CancellationToken cancellationToken)
@@ -630,8 +749,14 @@ public sealed class BridgeApplication
                 {
                     try
                     {
+                        bool wasAvailable = _openCodeAvailabilityTracker.IsAvailable;
                         await _openCodeClient.GetHealthAsync(cancellationToken);
                         await _openCodeAvailabilityTracker.ReportAvailableAsync(CancellationToken.None);
+
+                        if (!wasAvailable)
+                        {
+                            await EvaluateScheduledCommandsAsync("nach Wiederverbindung", cancellationToken);
+                        }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {

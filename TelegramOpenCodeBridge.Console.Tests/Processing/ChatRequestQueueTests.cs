@@ -25,8 +25,8 @@ public sealed class ChatRequestQueueTests
             (_, _) => Task.CompletedTask,
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "eins", "ses_a", null, null, null), CancellationToken.None);
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "zwei", "ses_a", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "eins", "ses_a", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "zwei", "ses_a", null, null, null), CancellationToken.None);
         await Task.Delay(150);
         await queue.BeginShutdownAsync(CancellationToken.None);
 
@@ -68,14 +68,14 @@ public sealed class ChatRequestQueueTests
             },
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "laufend", "ses_active", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "laufend", "ses_active", null, null, null), CancellationToken.None);
         await started.Task;
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "wartend", "ses_active", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "wartend", "ses_active", null, null, null), CancellationToken.None);
 
         Task shutdownTask = queue.BeginShutdownAsync(CancellationToken.None);
         await cancellationObserved.Task;
         await shutdownTask;
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "neu", "ses_active", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "neu", "ses_active", null, null, null), CancellationToken.None);
 
         Assert.Contains("ses_active", abortedSessions);
         Assert.Contains(rejections, entry => entry.StartsWith("wartend:", StringComparison.Ordinal));
@@ -99,13 +99,13 @@ public sealed class ChatRequestQueueTests
             (_, _) => Task.CompletedTask,
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
         await started.Task;
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "basis", "ses_base", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "basis", "ses_base", null, null, null), CancellationToken.None);
 
         ChatRuntimeStatusSnapshot status = queue.GetChatRuntimeStatus(1, 2);
 
-        Assert.Equal(RequestRuntimeState.Queued, status.BaseSessionState);
+        Assert.Equal(RequestRuntimeState.Running, status.BaseSessionState);
         Assert.Equal(RequestRuntimeState.Running, status.CommandStates[1]);
         Assert.Equal(RequestRuntimeState.Free, status.CommandStates[2]);
 
@@ -142,10 +142,10 @@ public sealed class ChatRequestQueueTests
             },
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "kommando", "ses_cmd", null, "Titel", 1), CancellationToken.None);
         await started.Task;
 
-        bool stopped = await queue.TryAbortActiveConfiguredCommandAsync(1, 1, CancellationToken.None);
+        bool stopped = await queue.TryAbortActiveConfiguredCommandAsync(1, CancellationToken.None);
 
         await cancellationObserved.Task;
         Assert.True(stopped);

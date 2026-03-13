@@ -33,7 +33,18 @@ public sealed class AppConfigurationValidatorTests
             ],
             Commands =
             [
-                new ConfiguredCommandOptions { Title = "", Session = "abc", Model = "", Prompt = "" },
+                new ConfiguredCommandOptions
+                {
+                    Title = "",
+                    Session = "abc",
+                    Model = "",
+                    Prompt = "",
+                    TimeLoop = new CommandTimeLoopOptions
+                    {
+                        Enabled = true,
+                        Interval = "xx",
+                    },
+                },
             ],
         };
 
@@ -50,6 +61,7 @@ public sealed class AppConfigurationValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Session", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Model", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Prompt", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("TimeLoop.Interval", StringComparison.Ordinal));
     }
 
     [Fact]

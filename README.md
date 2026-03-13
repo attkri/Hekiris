@@ -40,46 +40,55 @@ Die erste Version ist bewusst schlank gehalten: keine GUI, kein Windows-Service,
 
 Die Bridge lädt ihre feste Konfiguration aus `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`. Eine Repo-Vorlage liegt in `TelegramOpenCodeBridge.Console/config.template.json`.
 
-Der Eintrag `Telegram.SecretSourcePath` kann relativ zur festen Config-Datei gesetzt werden. Die Vorlage nutzt dafür `..\..\.secrets\NovaKrickBot_Telegram.secrets.json`.
+Die Konfiguration wird in `camelCase` geführt.
+
+Der Eintrag `telegram.secretSourcePath` kann relativ zur festen Config-Datei gesetzt werden. Die Vorlage nutzt dafür `..\..\.secrets\NovaKrickBot_Telegram.secrets.json`.
 
 Wichtige Bereiche:
 
-- `Telegram` - Bot-API, Polling und externer Secret-Pfad
+- `telegram` - Bot-API, Polling und externer Secret-Pfad
 
-- `OpenCode` - Basis-URL, optionaler Basic-Auth-Benutzer und Passwort
+- `openCode` - Basis-URL, optionaler Basic-Auth-Benutzer und Passwort
 
-- `AccessControl` - globale Freigaben für Telegram-Benutzer
+- `accessControl` - globale Freigaben für Telegram-Benutzer
 
-- `Runtime` - Queue-Größe, Retry-Verhalten und Startvalidierung
+- `runtime` - Queue-Größe, Retry-Verhalten und Startvalidierung
 
-- `Runtime.OpenCodeHealthCheckIntervalSeconds` - Intervall für die OpenCode-Erreichbarkeitsprüfung
+- `runtime.openCodeHealthCheckIntervalSeconds` - Intervall für die OpenCode-Erreichbarkeitsprüfung
 
-- `Chats` - Mapping `TelegramChatId -> OpenCodeSessionId`
+- `chats` - Mapping `telegramChatId -> openCodeSessionId`
 
-- `Commands` - vorkonfigurierte Chat-Kommandos mit Titel, Session, Modell und Prompt
+- `commands` - vorkonfigurierte Chat-Kommandos mit Titel, Session, Modell und Prompt sowie optionalem `timeLoop`
 
 Beispiel für `Commands`:
 
 ```json
 {
-  "Commands": [
+  "commands": [
     {
-      "Title": "Commando 1",
-      "Session": "ses_1234",
-      "Model": "gpt-4.1",
-      "Prompt": "Du bist ein hilfreicher Assistent. ..."
+      "title": "Commando 1",
+      "session": "ses_1234",
+      "model": "gpt-4.1",
+      "prompt": "Du bist ein hilfreicher Assistent. ...",
+      "timeLoop": {
+        "enabled": true,
+        "interval": "5m",
+        "lastRun": "2026-03-13T20:31:00"
+      }
     },
     {
-      "Title": "Commando 2",
-      "Session": "ses_5678",
-      "Model": "openai/gpt-4o",
-      "Prompt": "Du bist ein Experte für Geschichte. ..."
+      "title": "Commando 2",
+      "session": "ses_5678",
+      "model": "openai/gpt-4o",
+      "prompt": "Du bist ein Experte für Geschichte. ..."
     }
   ]
 }
 ```
 
-Wenn `Model` keinen Provider enthält, verwendet die Bridge standardmäßig `openai`.
+Wenn `model` keinen Provider enthält, verwendet die Bridge standardmäßig `openai`.
+
+Ist `commands[].timeLoop.enabled=true`, setzt die Bridge das Kommando automatisch nach dem Intervall ab. `lastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
 
 ## Chatbefehle
 

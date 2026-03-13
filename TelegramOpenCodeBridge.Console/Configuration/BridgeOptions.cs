@@ -75,6 +75,17 @@ public sealed class ConfiguredCommandOptions
     public string Model { get; set; } = string.Empty;
 
     public string Prompt { get; set; } = string.Empty;
+
+    public CommandTimeLoopOptions? TimeLoop { get; set; }
+}
+
+public sealed class CommandTimeLoopOptions
+{
+    public bool Enabled { get; set; }
+
+    public string Interval { get; set; } = string.Empty;
+
+    public DateTime? LastRun { get; set; }
 }
 
 public sealed record LoadedBridgeConfiguration(BridgeOptions Options, string ConfigPath);

@@ -1,33 +1,44 @@
 {
-  "Telegram": {
-    "ApiBaseUrl": "https://api.telegram.org",
-    "SecretSourcePath": "..\\..\\.secrets\\NovaKrickBot_Telegram.secrets.json",
-    "BotToken": "",
-    "PollingTimeoutSeconds": 20
+  "telegram": {
+    "apiBaseUrl": "https://api.telegram.org",
+    "secretSourcePath": "..\\..\\.secrets\\NovaKrickBot_Telegram.secrets.json",
+    "botToken": "",
+    "pollingTimeoutSeconds": 20
   },
-  "OpenCode": {
-    "BaseUrl": "http://192.168.0.101:4096/",
-    "Username": "opencode",
-    "Password": "",
-    "RequestTimeoutSeconds": 300
+  "openCode": {
+    "baseUrl": "http://192.168.0.101:4096/",
+    "username": "opencode",
+    "password": "",
+    "requestTimeoutSeconds": 300
   },
-  "AccessControl": {
-    "AllowedUserIds": []
+  "accessControl": {
+    "allowedUserIds": []
   },
-  "Runtime": {
-    "QueueCapacityPerChat": 20,
-    "TelegramRetryDelaySeconds": 5,
-    "OpenCodeHealthCheckIntervalSeconds": 30,
-    "StartupSessionValidation": true,
-    "RejectMessagesWhenStopping": true,
-    "SkipPendingUpdatesOnStart": true
+  "runtime": {
+    "queueCapacityPerChat": 20,
+    "telegramRetryDelaySeconds": 5,
+    "openCodeHealthCheckIntervalSeconds": 30,
+    "startupSessionValidation": true,
+    "rejectMessagesWhenStopping": true,
+    "skipPendingUpdatesOnStart": true
   },
-  "Chats": [
+  "chats": [
     {
-      "TelegramChatId": 1700580252,
-      "OpenCodeSessionId": "ses_317f98079ffewZTBZBlX9YR4On"
+      "telegramChatId": 1700580252,
+      "openCodeSessionId": "ses_317f98079ffewZTBZBlX9YR4On"
     }
   ],
-  "Commands": [
+  "commands": [
+    {
+      "title": "Ping Test",
+      "session": "ses_317f98079ffewZTBZBlX9YR4On",
+      "model": "openai/gpt-5.4",
+      "prompt": "ping",
+      "timeLoop": {
+        "enabled": true,
+        "interval": "5m",
+        "lastRun": "2026-03-13T20:31:00"
+      }
+    }
   ]
 }

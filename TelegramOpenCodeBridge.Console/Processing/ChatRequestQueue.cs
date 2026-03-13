@@ -10,9 +10,9 @@ public sealed class ChatRequestQueue
     private readonly Func<ChatRequest, string, CancellationToken, Task> _rejector;
     private readonly Func<ChatRequest, CancellationToken, Task> _aborter;
     private readonly bool _notifyWhenStopping;
-    private readonly ConcurrentDictionary<long, ChatQueueState> _queues = new();
-    private readonly ConcurrentDictionary<long, ActiveChatRequest> _activeRequests = new();
-    private readonly ConcurrentDictionary<RequestStatusKey, int> _pendingCounts = new();
+    private readonly ConcurrentDictionary<string, ChatQueueState> _queues = new();
+    private readonly ConcurrentDictionary<string, ActiveChatRequest> _activeRequests = new();
+    private readonly ConcurrentDictionary<string, int> _pendingCounts = new();
     private int _shuttingDown;
 
     public ChatRequestQueue(
@@ -29,7 +29,7 @@ public sealed class ChatRequestQueue
         _notifyWhenStopping = notifyWhenStopping;
     }
 
-    public async Task EnqueueAsync(ChatRequest request, CancellationToken cancellationToken)
+    public async Task<bool> EnqueueAsync(ChatRequest request, CancellationToken cancellationToken)
     {
         if (IsShuttingDown)
         {
@@ -38,17 +38,19 @@ public sealed class ChatRequestQueue
                 await _rejector(request, "Die Bridge wird gerade beendet. Neue Nachrichten werden aktuell nicht mehr angenommen.", cancellationToken);
             }
 
-            return;
+            return false;
         }
 
-        ChatQueueState queue = _queues.GetOrAdd(request.ChatId, CreateQueueState);
+        string queueKey = GetQueueKey(request);
+        ChatQueueState queue = _queues.GetOrAdd(queueKey, CreateQueueState);
         if (!queue.Writer.TryWrite(request))
         {
             await _rejector(request, "Die Warteschlange für diesen Chat ist voll. Bitte versuche es gleich erneut.", cancellationToken);
-            return;
+            return false;
         }
 
         IncrementPending(request);
+        return true;
     }
 
     public async Task BeginShutdownAsync(CancellationToken cancellationToken)
@@ -65,16 +67,23 @@ public sealed class ChatRequestQueue
 
         foreach (ActiveChatRequest activeRequest in _activeRequests.Values)
         {
-            activeRequest.CancellationTokenSource.Cancel();
+            try
+            {
+                activeRequest.CancellationTokenSource.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
             await _aborter(activeRequest.Request, cancellationToken);
         }
 
         await Task.WhenAll(_queues.Values.Select(queue => queue.Worker));
     }
 
-    public async Task<bool> TryAbortActiveConfiguredCommandAsync(long chatId, int commandNumber, CancellationToken cancellationToken)
+    public async Task<bool> TryAbortActiveConfiguredCommandAsync(int commandNumber, CancellationToken cancellationToken)
     {
-        if (!_activeRequests.TryGetValue(chatId, out ActiveChatRequest? activeRequest))
+        if (!_activeRequests.TryGetValue(GetCommandQueueKey(commandNumber), out ActiveChatRequest? activeRequest))
         {
             return false;
         }
@@ -91,28 +100,41 @@ public sealed class ChatRequestQueue
 
     public ChatRuntimeStatusSnapshot GetChatRuntimeStatus(long chatId, int configuredCommandCount)
     {
-        _activeRequests.TryGetValue(chatId, out ActiveChatRequest? activeRequest);
+        _activeRequests.TryGetValue(GetBaseQueueKey(chatId), out ActiveChatRequest? baseActiveRequest);
 
         Dictionary<int, RequestRuntimeState> commandStates = new();
         for (int commandNumber = 1; commandNumber <= configuredCommandCount; commandNumber++)
         {
-            bool isRunning = activeRequest?.Request.ConfiguredCommandNumber == commandNumber;
-            int pendingCount = GetPendingCount(chatId, commandNumber);
+            _activeRequests.TryGetValue(GetCommandQueueKey(commandNumber), out ActiveChatRequest? commandActiveRequest);
+            bool isRunning = commandActiveRequest is not null;
+            int pendingCount = GetPendingCount(GetCommandQueueKey(commandNumber));
             commandStates[commandNumber] = ToRuntimeState(isRunning, pendingCount);
         }
 
-        bool baseRunning = activeRequest is not null && activeRequest.Request.ConfiguredCommandNumber is null;
-        int pendingBaseCount = GetPendingCount(chatId, null);
+        bool baseRunning = baseActiveRequest is not null;
+        int pendingBaseCount = GetPendingCount(GetBaseQueueKey(chatId));
+
+        ChatRequest? activeRequest = baseActiveRequest?.Request
+            ?? _activeRequests.Values
+                .Select(item => item.Request)
+                .FirstOrDefault(item => item.ResponseChatIds.Contains(chatId));
 
         return new ChatRuntimeStatusSnapshot(
             ToRuntimeState(baseRunning, pendingBaseCount),
-            activeRequest?.Request,
+            activeRequest,
             commandStates);
+    }
+
+    public RequestRuntimeState GetCommandRuntimeState(int commandNumber)
+    {
+        bool isRunning = _activeRequests.ContainsKey(GetCommandQueueKey(commandNumber));
+        int pendingCount = GetPendingCount(GetCommandQueueKey(commandNumber));
+        return ToRuntimeState(isRunning, pendingCount);
     }
 
     private bool IsShuttingDown => Volatile.Read(ref _shuttingDown) == 1;
 
-    private ChatQueueState CreateQueueState(long chatId)
+    private ChatQueueState CreateQueueState(string queueKey)
     {
         Channel<ChatRequest> channel = Channel.CreateBounded<ChatRequest>(new BoundedChannelOptions(_queueCapacityPerChat)
         {
@@ -120,11 +142,11 @@ public sealed class ChatRequestQueue
             SingleWriter = false,
         });
 
-        Task worker = Task.Run(() => ProcessQueueAsync(chatId, channel.Reader));
+        Task worker = Task.Run(() => ProcessQueueAsync(queueKey, channel.Reader));
         return new ChatQueueState(channel.Writer, worker);
     }
 
-    private async Task ProcessQueueAsync(long chatId, ChannelReader<ChatRequest> reader)
+    private async Task ProcessQueueAsync(string queueKey, ChannelReader<ChatRequest> reader)
     {
         await foreach (ChatRequest request in reader.ReadAllAsync())
         {
@@ -140,14 +162,14 @@ public sealed class ChatRequestQueue
 
             DecrementPending(request);
             using CancellationTokenSource requestCancellationTokenSource = new();
-            _activeRequests[chatId] = new ActiveChatRequest(request, requestCancellationTokenSource);
+            _activeRequests[queueKey] = new ActiveChatRequest(request, requestCancellationTokenSource);
             try
             {
                 await _processor(request, requestCancellationTokenSource.Token);
             }
             finally
             {
-                _activeRequests.TryRemove(chatId, out _);
+                _activeRequests.TryRemove(queueKey, out _);
             }
         }
     }
@@ -156,17 +178,15 @@ public sealed class ChatRequestQueue
 
     private sealed record ActiveChatRequest(ChatRequest Request, CancellationTokenSource CancellationTokenSource);
 
-    private readonly record struct RequestStatusKey(long ChatId, int? CommandNumber);
-
     private void IncrementPending(ChatRequest request)
     {
-        RequestStatusKey key = new(request.ChatId, request.ConfiguredCommandNumber);
+        string key = GetQueueKey(request);
         _pendingCounts.AddOrUpdate(key, 1, static (_, current) => current + 1);
     }
 
     private void DecrementPending(ChatRequest request)
     {
-        RequestStatusKey key = new(request.ChatId, request.ConfiguredCommandNumber);
+        string key = GetQueueKey(request);
         while (true)
         {
             if (!_pendingCounts.TryGetValue(key, out int current))
@@ -191,9 +211,26 @@ public sealed class ChatRequestQueue
         }
     }
 
-    private int GetPendingCount(long chatId, int? commandNumber)
+    private int GetPendingCount(string queueKey)
     {
-        return _pendingCounts.TryGetValue(new RequestStatusKey(chatId, commandNumber), out int count) ? count : 0;
+        return _pendingCounts.TryGetValue(queueKey, out int count) ? count : 0;
+    }
+
+    private static string GetQueueKey(ChatRequest request)
+    {
+        return request.ConfiguredCommandNumber is null
+            ? GetBaseQueueKey(request.ChatId)
+            : GetCommandQueueKey(request.ConfiguredCommandNumber.Value);
+    }
+
+    private static string GetBaseQueueKey(long chatId)
+    {
+        return $"base:{chatId}";
+    }
+
+    private static string GetCommandQueueKey(int commandNumber)
+    {
+        return $"command:{commandNumber}";
     }
 
     private static RequestRuntimeState ToRuntimeState(bool isRunning, int pendingCount)
@@ -209,13 +246,15 @@ public sealed class ChatRequestQueue
 
 public sealed record ChatRequest(
     long ChatId,
+    IReadOnlyList<long> ResponseChatIds,
     long? UserId,
     string? Username,
     string Text,
     string OpenCodeSessionId,
     string? ConfiguredModel,
     string? ConfiguredCommandTitle,
-    int? ConfiguredCommandNumber);
+    int? ConfiguredCommandNumber,
+    bool IsAutomatic = false);
 
 public sealed record ChatRuntimeStatusSnapshot(
     RequestRuntimeState BaseSessionState,

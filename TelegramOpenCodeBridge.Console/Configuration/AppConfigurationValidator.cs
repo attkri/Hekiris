@@ -115,6 +115,25 @@ public sealed class AppConfigurationValidator
             {
                 result.Add($"Commands[{displayIndex}].Prompt darf nicht leer sein.");
             }
+
+            if (command.TimeLoop?.Enabled == true)
+            {
+                if (string.IsNullOrWhiteSpace(command.TimeLoop.Interval))
+                {
+                    result.Add($"Commands[{displayIndex}].TimeLoop.Interval darf nicht leer sein, wenn TimeLoop.Enabled=true ist.");
+                }
+                else
+                {
+                    try
+                    {
+                        _ = Application.CommandTimeLoopScheduler.ParseInterval(command.TimeLoop.Interval);
+                    }
+                    catch (FormatException exception)
+                    {
+                        result.Add($"Commands[{displayIndex}].TimeLoop.Interval ist ungültig: {exception.Message}");
+                    }
+                }
+            }
         }
 
         return result;
