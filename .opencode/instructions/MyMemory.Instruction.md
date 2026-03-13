@@ -1,0 +1,219 @@
+# My Memory Context
+
+**Stand:** 2026-03-13 18:04
+
+## Fortschritt
+
+**Aktueller Stand laufender Aufgaben:**
+
+- Der Kick-off für `TelegramOpenCodeBridge` ist als erste lauffähige .NET-10-Console-App mit xUnit-Testprojekt umgesetzt.
+
+**Risiken:**
+
+- Der aktuell vorgegebene OpenCode-Endpunkt nutzt HTTP im LAN; die App warnt deshalb bei `check` und `start`, solange kein Passwort gesetzt ist.
+
+- Die Projektordner wurden auf Wunsch direkt ins Repo-Root verschoben; alte Referenzen auf `src/` und `tests/` dürfen nicht wieder eingeführt werden.
+
+- Der Start-/Stop- und Offline-Monitor ist per Code umgesetzt, aber ein echtes langlaufendes Telegram-Ende-zu-Ende wurde in dieser Session nicht manuell beobachtet.
+
+**Offene Fragen:**
+
+**Nächste Schritte:**
+
+- [X] `OpenCodeSessionId` in `TelegramOpenCodeBridge.Console/appsettings.json` auf die bestehende Session `ses_317f98079ffewZTBZBlX9YR4On` setzen.
+
+- [X] `tocb check` erneut ausführen.
+
+- [X] Einen direkten OpenCode-Ping mit der Session `ses_317f98079ffewZTBZBlX9YR4On` gegen die API verifizieren.
+
+- [ ] Optional `tocb start` mit Telegram-Ende-zu-Ende testen.
+
+- [ ] Optional das Offline-/Recovery-Verhalten gegen einen bewusst gestoppten OpenCode-Server manuell beobachten.
+
+## Entscheidungen
+
+### Externe Telegram-Secrets zur Laufzeit laden (2026-03-13)
+
+**Entscheidung:**
+
+- Das Telegram-Token bleibt außerhalb des Repos in einer externen Secret-Datei; die App lädt es über `Telegram.SecretSourcePath` zur Laufzeit nach.
+
+**Begründung:**
+
+- Der Arbeitsauftrag verlangt die Übernahme der vorhandenen Telegram-Secret-Datei, gleichzeitig dürfen Secrets nicht ins Repo eingecheckt oder unmaskiert ausgegeben werden.
+
+**Konsequenz:**
+
+- `tocb config show` maskiert `BotToken` und `OpenCode.Password`; `TelegramOpenCodeBridge.Console/appsettings.json` enthält nur den Pfad zur Secret-Datei und keinen Klartext-Token.
+
+**Verworfen:**
+
+- Das Token direkt in eine versionierte App-Config zu kopieren.
+
+### Serielle Verarbeitung pro Chat über Chat-Queues (2026-03-13)
+
+**Entscheidung:**
+
+- Nachrichten werden je Telegram-Chat über eine eigene Queue seriell verarbeitet; beim Stop werden aktive Requests abgebrochen und wartende Requests abgewiesen.
+
+**Begründung:**
+
+- Der Auftrag verbietet parallele OpenCode-Anfragen pro Chat und verlangt ein verständliches Verhalten bei CTRL+C.
+
+**Konsequenz:**
+
+- Die Logik liegt in `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs` und wird durch xUnit-Tests abgesichert.
+
+**Verworfen:**
+
+- Parallele Fire-and-Forget-Verarbeitung mit bloßen Semaphoren ohne kontrollierten Shutdown.
+
+### Repo-Struktur direkt im Root (2026-03-13)
+
+**Entscheidung:**
+
+- Die Lösung ist als `TelegramOpenCodeBridge.slnx` mit `TelegramOpenCodeBridge.Console` und `TelegramOpenCodeBridge.Console.Tests` direkt im Repo-Root aufgebaut.
+
+**Begründung:**
+
+- Das Repo war für .NET leer; die Trennung in Produktionscode und xUnit-Tests bleibt erhalten, aber die Projektordner liegen auf Wunsch direkt im Root statt unter `src/` und `tests/`.
+
+**Konsequenz:**
+
+- Gemeinsame Versionen stehen in `Directory.Build.props`, die EXE heißt `tocb`, und `README.md` dokumentiert Setup und Nutzung.
+
+**Verworfen:**
+
+- Eine Ein-Projekt-Lösung ohne separates Testprojekt sowie eine zusätzliche `src/`- und `tests/`-Schachtelung.
+
+### Statusmeldungen und Tages-CSV-Logs (2026-03-13)
+
+**Entscheidung:**
+
+- Die Bridge sendet Statusmeldungen für Start, geordnetes Beenden und OpenCode-Erreichbarkeitswechsel an die konfigurierten Telegram-Chats und schreibt parallel ein tägliches CSV-Log im EXE-Ordner.
+
+**Begründung:**
+
+- Der User wollte sichtbare Laufzeitmeldungen in Telegram und ein ausführliches, aber inhaltssicheres Betriebslog ohne Chattexte oder Secrets.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/Application/OpenCodeAvailabilityTracker.cs` steuert Zustandswechsel, und `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs` schreibt `yyyy-MM-dd-OCBridge.csv` mit maximal 10 Tagen Aufbewahrung.
+
+- Die CSV-Rotation orientiert sich am Tagesdatum im Dateinamen und löscht Logs, die älter als 10 Kalendertage sind.
+
+**Verworfen:**
+
+- Reines Console-Logging ohne Telegram-Statusmeldungen sowie Logeinträge mit Chatnachricht-Inhalten.
+
+## User-Profil
+
+### Entscheidungsstil
+
+- [6] Reduziert breite Themen aktiv auf den kleinsten entscheidbaren Ausschnitt bei Standard-Aufgaben im Projektkontext ohne widersprechende aktuelle Anweisung; die KI soll Antworten und Vorschläge auf den kleinsten sinnvoll entscheidbaren Scope zuschneiden.
+
+- [6] Korrigiert Annahmen, Zahlen und Fehlfokus direkt und ohne Umwege bei Klärungen, Reviews und Planungsfragen; die KI soll Präzision vor diplomatischer Umschreibung priorisieren.
+
+- [6] Erwartet konkrete Handlungsempfehlungen mit klarer Begründung statt bloßer Analyse bei Strategie-, Review- und Umsetzungsfragen; die KI soll einen klaren Vorschlag mit Begründung geben.
+
+### Kommunikation
+
+- [6] Formuliert Aufgaben direktiv und auftragsorientiert bei normalen Arbeitsaufträgen im Projektkontext; die KI soll knapp, direkt und umsetzungsorientiert antworten.
+
+- [6] Nutzt oft knappe Steuer- und Statussignale statt langer Rückmeldungen bei laufender Zusammenarbeit; die KI soll Bestätigungen und Statusmeldungen kurz halten.
+
+- [6] Markiert klar, wenn die Antwort am eigentlichen Problem vorbeigeht bei Korrekturen und Nachschärfungen; die KI soll Fokusabweichungen schnell korrigieren und nicht verteidigen.
+
+- [3] Gibt bei Tests oder formatkritischen Aufgaben sehr präzise Ausgabevorgaben bei prüfbaren oder formatgebundenen Ergebnissen; die KI soll Ausgabeform und Struktur genau einhalten.
+
+### Prioritäten
+
+- [6] Praktischer Nutzen und Umsetzbarkeit sind wichtiger als Vollständigkeit oder Theorie bei Lösungs- und Entscheidungsvorschlägen; die KI soll praktikable Umsetzungen priorisieren.
+
+- [4] Erwartet sichtbare Konsistenz über das gesamte Repo, nicht nur punktuelle Korrekturen bei Änderungen mit Wiederholungsmustern; die KI soll betroffene Stellen repo-weit mitdenken.
+
+- [6] Will, dass Regeln, Begriffe und dauerhaft nützliches Wissen in Repo-Artefakten landen bei verallgemeinerbaren Erkenntnissen; die KI soll stabiles Wissen in geeignete Repo-Dateien überführen.
+
+### Autonomie
+
+- [6] Erwartet hohe Eigenständigkeit des Agenten, wenn Ziel und Richtung klar sind bei normalen Aufgaben ohne besondere Freigabeanforderung; die KI soll selbständig arbeiten und nur bei echten Blockern nachfragen.
+
+- [6] Setzt bei riskanten oder unerwünschten Eingriffen klare Grenzen bei Aktionen mit erhöhter Tragweite; die KI soll konservativ bleiben und bestehende Schutzregeln beachten.
+
+- [6] Erwartet proaktive Folgeschritte, Statusbilder und sinnvolle nächste Aktionen bei mehrstufigen Aufgaben; die KI soll naheliegende nächste Schritte aktiv mitliefern.
+
+### Arbeitsweise
+
+- [6] Arbeitet iterativ und schärft Anforderungen mit neuen Daten und Korrekturen nach bei Entwürfen, Reviews und Umsetzungen; die KI soll schrittweise verbessern statt unnötig neu aufzusetzen.
+
+- [6] Liefert lieber konkrete Artefakte, Pfade, Rohdaten und Beispiele als abstrakte Beschreibungen bei Arbeits- und Analyseaufträgen; die KI soll greifbare Ergebnisse bevorzugen.
+
+- [6] Prüft Ergebnisse am realen Zustand von System, Repo oder UI statt an bloßen Behauptungen bei verifizierbaren Aufgaben; die KI soll nach Möglichkeit zustandsbasiert prüfen.
+
+## Probleme & Lösungen
+
+### Telegram-Bot-Token im URL-Pfad (2026-03-13)
+
+**Problem:**
+
+- `tocb check` scheiterte zuerst mit `The 'bot8234111616' scheme is not supported.`
+
+**Ursache:**
+
+- Der relative Telegram-API-Pfad begann direkt mit `bot<TOKEN>/...`; wegen des Doppelpunkts im Token interpretierte `HttpClient` das erste Segment als URI-Schema.
+
+**Lösung:**
+
+- Telegram-Methodenpfade beginnen jetzt mit `/bot<TOKEN>/...`, und ein Test in `TelegramOpenCodeBridge.Console.Tests/Telegram/TelegramBotClientTests.cs` sichert dieses Verhalten ab.
+
+### Echte OpenCode-Session für den Hauptchat gesetzt (2026-03-13)
+
+**Problem:**
+
+- Die erste Konfiguration enthielt nur den Platzhalter `ses_REPLACE_ME`, dadurch blieb `tocb check` rot.
+
+**Ursache:**
+
+- Beim Kick-off war noch keine konkrete Session-ID festgelegt.
+
+**Lösung:**
+
+- `TelegramOpenCodeBridge.Console/appsettings.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `tocb check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
+
+## Nützliche Kommandos (kurz)
+
+- `dotnet test TelegramOpenCodeBridge.slnx`: Build und xUnit-Tests ausführen.
+
+- `dotnet run --project TelegramOpenCodeBridge.Console -- check`: Konfiguration, Telegram, OpenCode und Sessions prüfen.
+
+- `dotnet run --project TelegramOpenCodeBridge.Console -- start`: Bridge starten.
+
+- `TelegramOpenCodeBridge.Console/bin/Debug/net10.0/YYYY-MM-DD-OCBridge.csv`: Tageslog der Bridge.
+
+## Context
+
+- **Projektzweck:** Telegram-Bot-Nachrichten aus freigegebenen Chats an eine feste OpenCode-Session weiterleiten und Antworten zurücksenden.
+
+- **Leitdokumente:** `.Tasks/Kick-Off.md`, `AGENTS.md`, `README.md`
+
+- **Arbeitsmodus:** Erst Repo-Kontext und Vorgaben prüfen, dann kleinste lauffähige .NET-Struktur umsetzen und mit echten Commands verifizieren.
+
+- **Constraints:** .NET 10, Windows-Console-App, xUnit-Testprojekt, keine Secrets im Repo, keine Windows-Service-Infrastruktur.
+
+## Referenzen
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Application/BridgeApplication.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/appsettings.json`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Application/OpenCodeAvailabilityTracker.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console.Tests/`
+
+## Notes
+
+- `dotnet new sln -n TelegramOpenCodeBridge` hat in dieser Umgebung eine `.slnx` erzeugt; die Solution-Datei heißt deshalb `TelegramOpenCodeBridge.slnx`.
