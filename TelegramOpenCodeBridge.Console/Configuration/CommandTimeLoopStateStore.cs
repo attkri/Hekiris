@@ -28,7 +28,7 @@ public sealed class CommandTimeLoopStateStore
             }
 
             JsonObject timeLoop = GetOrCreateObject(commandObject, "timeLoop", "TimeLoop");
-            timeLoop["lastRun"] = lastRun.ToString("yyyy-MM-ddTHH:mm:ss");
+            SetLastRun(timeLoop, lastRun);
 
             JsonSerializerOptions options = new(JsonSerializerDefaults.Web)
             {
@@ -82,5 +82,25 @@ public sealed class CommandTimeLoopStateStore
         JsonObject created = new();
         parent[candidateNames[0]] = created;
         return created;
+    }
+
+    private static void SetLastRun(JsonObject timeLoop, DateTime lastRun)
+    {
+        string formatted = lastRun.ToString("yyyy-MM-ddTHH:mm:ss");
+
+        if (timeLoop.ContainsKey("LastRun"))
+        {
+            timeLoop["LastRun"] = formatted;
+            timeLoop.Remove("lastRun");
+            return;
+        }
+
+        if (timeLoop.ContainsKey("lastRun"))
+        {
+            timeLoop["lastRun"] = formatted;
+            return;
+        }
+
+        timeLoop["LastRun"] = formatted;
     }
 }
