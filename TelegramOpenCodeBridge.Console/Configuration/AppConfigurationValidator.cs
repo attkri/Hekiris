@@ -85,6 +85,16 @@ public sealed class AppConfigurationValidator
             {
                 result.Add($"Die OpenCodeSessionId für Chat {binding.TelegramChatId} muss mit 'ses' beginnen.");
             }
+
+            if (binding.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
+            {
+                result.Add($"Chats[{binding.TelegramChatId}].AllowedUsernames darf keine leeren Werte enthalten.");
+            }
+        }
+
+        if (options.AccessControl.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
+        {
+            result.Add("AccessControl.AllowedUsernames darf keine leeren Werte enthalten.");
         }
 
         for (int index = 0; index < options.Commands.Count; index++)

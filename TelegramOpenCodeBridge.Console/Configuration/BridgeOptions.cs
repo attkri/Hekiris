@@ -40,6 +40,8 @@ public sealed class OpenCodeOptions
 public sealed class AccessControlOptions
 {
     public List<long> AllowedUserIds { get; set; } = new();
+
+    public List<string> AllowedUsernames { get; set; } = new();
 }
 
 public sealed class RuntimeOptions
@@ -64,6 +66,8 @@ public sealed class ChatBindingOptions
     public string OpenCodeSessionId { get; set; } = string.Empty;
 
     public List<long> AllowedUserIds { get; set; } = new();
+
+    public List<string> AllowedUsernames { get; set; } = new();
 }
 
 public sealed class ConfiguredCommandOptions

@@ -1,6 +1,6 @@
 # My Memory Context
 
-**Stand:** 2026-03-13 20:03
+**Stand:** 2026-03-13 20:56
 
 ## Fortschritt
 
@@ -20,6 +20,8 @@
 
 - Der Chat unterstützt jetzt neben `/cN` auch `/cNs` zum gezielten Stop eines laufenden konfigurierten Kommandos; `/ss` zeigt kompakte Laufzeitstates statt der Konfiguration.
 
+- Scheduler- und Recovery-Verhalten für `commands[].timeLoop` sind per Build und Tests abgesichert, aber noch nicht als echter Langlauftest über mehrere Intervalle in Telegram beobachtet.
+
 **Offene Fragen:**
 
 **Nächste Schritte:**
@@ -33,6 +35,8 @@
 - [ ] Optional `tocb start` mit Telegram-Ende-zu-Ende testen.
 
 - [ ] Optional das Offline-/Recovery-Verhalten gegen einen bewusst gestoppten OpenCode-Server manuell beobachten.
+
+- [ ] Optional die automatische `timeLoop`-Ausführung über mehrere Intervalle im echten Telegram-Betrieb beobachten.
 
 ## Entscheidungen
 
@@ -164,6 +168,42 @@
 
 - Ein globales `/stop` für einzelne Kommandos sowie eine Statusausgabe mit kompletter maskierter Konfiguration.
 
+### CamelCase-Konfiguration und feste Scheduler-Loops (2026-03-13)
+
+**Entscheidung:**
+
+- Die feste Konfiguration unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` wird konsequent in `camelCase` geführt, und `commands[].timeLoop` steuert optionale automatische Command-Läufe mit persistiertem `lastRun`.
+
+**Begründung:**
+
+- Der User wollte ein einheitliches JSON-Format und automatische Command-Ausführung nach Intervall, auch nach Start oder OpenCode-Recovery.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/config.template.json` ist auf `camelCase` umgestellt; `TelegramOpenCodeBridge.Console/Application/CommandTimeLoopScheduler.cs` bewertet Fälligkeit, `TelegramOpenCodeBridge.Console/Configuration/CommandTimeLoopStateStore.cs` persistiert `lastRun`, und `BridgeApplication` plant fällige Commands bei Start, nach Wiederverbindung und zyklisch ein.
+
+**Verworfen:**
+
+- Gemischte JSON-Schreibweisen sowie rein flüchtige Scheduler-Zustände ohne Rückschreiben in die feste Config.
+
+### Erweiterter `/ss`-Status und Stopmeldung vor Cancel (2026-03-13)
+
+**Entscheidung:**
+
+- `/ss` zeigt pro Kommando zusätzlich Loop-Status, Intervall und `lastRun`, und bei `CTRL+C` wird die Telegram-Stopmeldung vor dem Cancel des Polling-Tokens gesendet.
+
+**Begründung:**
+
+- Der User wollte in `/ss` die relevanten Loop-Daten sehen und sicherstellen, dass Chats beim manuellen Stop zuverlässig noch benachrichtigt werden.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/Application/BridgeApplication.cs` ergänzt die Statusausgabe um `Loop an/aus`, `Intervall` und `LastRun`; außerdem wird die Beenden-Meldung jetzt vor dem Cancel ausgelöst.
+
+**Verworfen:**
+
+- Ein reiner Laufzeitstatus ohne Loop-Metadaten sowie ein Shutdown-Ablauf, bei dem die Telegram-Meldung erst nach dem Cancel versucht wird.
+
 ## User-Profil
 
 ### Entscheidungsstil
@@ -183,6 +223,8 @@
 - [6] Markiert klar, wenn die Antwort am eigentlichen Problem vorbeigeht bei Korrekturen und Nachschärfungen; die KI soll Fokusabweichungen schnell korrigieren und nicht verteidigen.
 
 - [3] Gibt bei Tests oder formatkritischen Aufgaben sehr präzise Ausgabevorgaben bei prüfbaren oder formatgebundenen Ergebnissen; die KI soll Ausgabeform und Struktur genau einhalten.
+
+- [4] Korrigiert Konfigurationsformate und sichtbare User-Texte direkt auf die gewünschte Endform bei JSON- und Chat-Interfaces; die KI soll Namenskonventionen wie `camelCase` und gewünschte Befehlstexte konsequent durchziehen.
 
 ### Prioritäten
 
@@ -248,6 +290,8 @@
 
 - `C:\Users\attila\.logs\TelegramOpenCodeBridge\YYYY-MM-DD-OCBridge.csv`: Tageslog der Bridge.
 
+- `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`: feste Runtime-Konfiguration inkl. `commands[].timeLoop`.
+
 ## Context
 
 - **Projektzweck:** Telegram-Bot-Nachrichten aus freigegebenen Chats an eine feste OpenCode-Session weiterleiten und Antworten zurücksenden.
@@ -271,6 +315,10 @@
 - **Dateien:** `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs`
 
 - **Dateien:** `TelegramOpenCodeBridge.Console/Application/OpenCodeAvailabilityTracker.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Application/CommandTimeLoopScheduler.cs`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Configuration/CommandTimeLoopStateStore.cs`
 
 - **Dateien:** `TelegramOpenCodeBridge.Console.Tests/`
 

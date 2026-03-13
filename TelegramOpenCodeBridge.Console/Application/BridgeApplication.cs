@@ -348,6 +348,7 @@ public sealed class BridgeApplication
         private async Task HandleIncomingMessageAsync(TelegramMessage message)
         {
             string incomingText = message.Text!.Trim();
+            _console.WriteInfo($"Eingehende Nachricht: Chat {message.Chat.Id}, UserId {FormatUserId(message.From?.Id)}, Username {FormatUsername(message.From?.Username)}.");
 
             if (IsStopping)
             {
@@ -370,8 +371,7 @@ public sealed class BridgeApplication
 
             if (!IsUserAllowed(message, chatBinding))
             {
-                _console.WriteInfo($"Benutzer {message.From?.Id} ist für Chat {message.Chat.Id} nicht freigegeben.");
-                await _telegramClient.SendMessageAsync(message.Chat.Id, "Du bist für diese Bridge nicht freigeschaltet.", CancellationToken.None);
+                _console.WriteInfo($"Nicht freigegebene Nachricht verworfen: Chat {message.Chat.Id}, UserId {FormatUserId(message.From?.Id)}, Username {FormatUsername(message.From?.Username)}.");
                 return;
             }
 
@@ -464,14 +464,44 @@ public sealed class BridgeApplication
         {
             if (message.From?.Id is null)
             {
-                return !_options.AccessControl.AllowedUserIds.Any() && !binding.AllowedUserIds.Any();
+                return !_options.AccessControl.AllowedUserIds.Any()
+                    && !_options.AccessControl.AllowedUsernames.Any()
+                    && !binding.AllowedUserIds.Any()
+                    && !binding.AllowedUsernames.Any();
             }
 
             long userId = message.From.Id.Value;
+            string? username = NormalizeUsername(message.From?.Username);
 
             bool globallyAllowed = !_options.AccessControl.AllowedUserIds.Any() || _options.AccessControl.AllowedUserIds.Contains(userId);
             bool locallyAllowed = !binding.AllowedUserIds.Any() || binding.AllowedUserIds.Contains(userId);
-            return globallyAllowed && locallyAllowed;
+
+            bool globallyAllowedByUsername = !_options.AccessControl.AllowedUsernames.Any()
+                || (username is not null && _options.AccessControl.AllowedUsernames.Any(item => string.Equals(NormalizeUsername(item), username, StringComparison.OrdinalIgnoreCase)));
+            bool locallyAllowedByUsername = !binding.AllowedUsernames.Any()
+                || (username is not null && binding.AllowedUsernames.Any(item => string.Equals(NormalizeUsername(item), username, StringComparison.OrdinalIgnoreCase)));
+
+            return globallyAllowed && locallyAllowed && globallyAllowedByUsername && locallyAllowedByUsername;
+        }
+
+        private static string FormatUserId(long? userId)
+        {
+            return userId?.ToString() ?? "-";
+        }
+
+        private static string FormatUsername(string? username)
+        {
+            return NormalizeUsername(username) ?? "-";
+        }
+
+        private static string? NormalizeUsername(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return null;
+            }
+
+            return username.Trim().TrimStart('@');
         }
 
         private async Task ProcessChatRequestAsync(ChatRequest request, CancellationToken cancellationToken)

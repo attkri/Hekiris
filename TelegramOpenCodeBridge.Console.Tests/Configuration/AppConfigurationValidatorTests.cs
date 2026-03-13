@@ -27,9 +27,13 @@ public sealed class AppConfigurationValidatorTests
                 TelegramRetryDelaySeconds = 0,
                 OpenCodeHealthCheckIntervalSeconds = 0,
             },
+            AccessControl = new AccessControlOptions
+            {
+                AllowedUsernames = [""]
+            },
             Chats =
             [
-                new ChatBindingOptions { TelegramChatId = 0, OpenCodeSessionId = "" },
+                new ChatBindingOptions { TelegramChatId = 0, OpenCodeSessionId = "", AllowedUsernames = [""] },
             ],
             Commands =
             [
@@ -57,6 +61,8 @@ public sealed class AppConfigurationValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("QueueCapacityPerChat", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeHealthCheckIntervalSeconds", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeSessionId", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("AccessControl.AllowedUsernames", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("AllowedUsernames", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Title", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Session", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Model", StringComparison.Ordinal));

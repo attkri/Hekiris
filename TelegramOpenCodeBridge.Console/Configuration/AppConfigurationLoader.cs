@@ -12,10 +12,18 @@ public sealed class AppConfigurationLoader
         AllowTrailingCommas = true,
     };
 
+    private readonly string? _configPathOverride;
+
+    public AppConfigurationLoader(string? configPathOverride = null)
+    {
+        _configPathOverride = configPathOverride;
+    }
+
     public LoadedBridgeConfiguration Load()
     {
-        string basePath = ResolveConfigPath();
+        string basePath = ResolveConfigPath(_configPathOverride);
         JsonObject mergedConfiguration = LoadObject(basePath);
+        NormalizeAccessControlCollections(mergedConfiguration);
 
         BridgeOptions? options = mergedConfiguration.Deserialize<BridgeOptions>(SerializerOptions);
         if (options is null)
@@ -27,9 +35,11 @@ public sealed class AppConfigurationLoader
         return new LoadedBridgeConfiguration(options, basePath);
     }
 
-    private static string ResolveConfigPath()
+    private static string ResolveConfigPath(string? configPathOverride)
     {
-        string fullPath = BridgePaths.GetConfigFilePath();
+        string fullPath = string.IsNullOrWhiteSpace(configPathOverride)
+            ? BridgePaths.GetConfigFilePath()
+            : Path.GetFullPath(configPathOverride);
         if (!File.Exists(fullPath))
         {
             throw new ConfigurationException($"Konfigurationsdatei nicht gefunden: {fullPath}");
@@ -88,5 +98,99 @@ public sealed class AppConfigurationLoader
     private sealed class TelegramSecretFile
     {
         public string? AccessToken { get; set; }
+    }
+
+    private static void NormalizeAccessControlCollections(JsonObject root)
+    {
+        NormalizeAllowedValuesOnObject(GetObject(root, "accessControl", "AccessControl"));
+
+        JsonArray? chats = GetArray(root, "chats", "Chats");
+        if (chats is null)
+        {
+            return;
+        }
+
+        foreach (JsonNode? node in chats)
+        {
+            if (node is JsonObject chatObject)
+            {
+                NormalizeAllowedValuesOnObject(chatObject);
+            }
+        }
+    }
+
+    private static void NormalizeAllowedValuesOnObject(JsonObject? jsonObject)
+    {
+        if (jsonObject is null)
+        {
+            return;
+        }
+
+        NormalizeToLongArray(jsonObject, "allowedUserIds", "AllowedUserIds");
+        NormalizeToStringArray(jsonObject, "allowedUsernames", "AllowedUsernames");
+    }
+
+    private static void NormalizeToLongArray(JsonObject jsonObject, params string[] candidateNames)
+    {
+        foreach (string candidateName in candidateNames)
+        {
+            if (jsonObject[candidateName] is not JsonValue jsonValue)
+            {
+                continue;
+            }
+
+            if (jsonValue.TryGetValue<long>(out long longValue))
+            {
+                jsonObject[candidateName] = new JsonArray(longValue);
+                return;
+            }
+
+            if (jsonValue.TryGetValue<string>(out string? stringValue)
+                && long.TryParse(stringValue, out long parsedValue))
+            {
+                jsonObject[candidateName] = new JsonArray(parsedValue);
+                return;
+            }
+        }
+    }
+
+    private static void NormalizeToStringArray(JsonObject jsonObject, params string[] candidateNames)
+    {
+        foreach (string candidateName in candidateNames)
+        {
+            if (jsonObject[candidateName] is JsonValue jsonValue
+                && jsonValue.TryGetValue<string>(out string? stringValue)
+                && !string.IsNullOrWhiteSpace(stringValue))
+            {
+                jsonObject[candidateName] = new JsonArray(stringValue);
+                return;
+            }
+        }
+    }
+
+    private static JsonObject? GetObject(JsonObject root, params string[] candidateNames)
+    {
+        foreach (string candidateName in candidateNames)
+        {
+            if (root[candidateName] is JsonObject jsonObject)
+            {
+                return jsonObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static JsonArray? GetArray(JsonObject root, params string[] candidateNames)
+    {
+        foreach (string candidateName in candidateNames)
+        {
+            if (root[candidateName] is JsonArray jsonArray)
+            {
+                return jsonArray;
+            }
+        }
+
+        return null;
     }
 }

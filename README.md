@@ -40,55 +40,55 @@ Die erste Version ist bewusst schlank gehalten: keine GUI, kein Windows-Service,
 
 Die Bridge lädt ihre feste Konfiguration aus `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`. Eine Repo-Vorlage liegt in `TelegramOpenCodeBridge.Console/config.template.json`.
 
-Die Konfiguration wird in `camelCase` geführt.
+Die Konfiguration wird mit großgeschriebenem Anfangsbuchstaben pro JSON-Key geführt, z. B. `Telegram`, `OpenCode`, `AccessControl`, `AllowedUserIds`.
 
-Der Eintrag `telegram.secretSourcePath` kann relativ zur festen Config-Datei gesetzt werden. Die Vorlage nutzt dafür `..\..\.secrets\NovaKrickBot_Telegram.secrets.json`.
+Der Eintrag `Telegram.SecretSourcePath` kann relativ zur festen Config-Datei gesetzt werden. Die Vorlage nutzt dafür `..\..\.secrets\NovaKrickBot_Telegram.secrets.json`.
 
 Wichtige Bereiche:
 
-- `telegram` - Bot-API, Polling und externer Secret-Pfad
+- `Telegram` - Bot-API, Polling und externer Secret-Pfad
 
-- `openCode` - Basis-URL, optionaler Basic-Auth-Benutzer und Passwort
+- `OpenCode` - Basis-URL, optionaler Basic-Auth-Benutzer und Passwort
 
-- `accessControl` - globale Freigaben für Telegram-Benutzer
+- `AccessControl` - globale Freigaben für Telegram-Benutzer über `AllowedUserIds` und `AllowedUsernames`
 
-- `runtime` - Queue-Größe, Retry-Verhalten und Startvalidierung
+- `Runtime` - Queue-Größe, Retry-Verhalten und Startvalidierung
 
-- `runtime.openCodeHealthCheckIntervalSeconds` - Intervall für die OpenCode-Erreichbarkeitsprüfung
+- `Runtime.OpenCodeHealthCheckIntervalSeconds` - Intervall für die OpenCode-Erreichbarkeitsprüfung
 
-- `chats` - Mapping `telegramChatId -> openCodeSessionId`
+- `Chats` - Mapping `TelegramChatId -> OpenCodeSessionId` mit optionalen `AllowedUserIds` und `AllowedUsernames` je Chat
 
-- `commands` - vorkonfigurierte Chat-Kommandos mit Titel, Session, Modell und Prompt sowie optionalem `timeLoop`
+- `Commands` - vorkonfigurierte Chat-Kommandos mit Titel, Session, Modell und Prompt sowie optionalem `TimeLoop`
 
 Beispiel für `Commands`:
 
 ```json
 {
-  "commands": [
+  "Commands": [
     {
-      "title": "Commando 1",
-      "session": "ses_1234",
-      "model": "gpt-4.1",
-      "prompt": "Du bist ein hilfreicher Assistent. ...",
-      "timeLoop": {
-        "enabled": true,
-        "interval": "5m",
-        "lastRun": "2026-03-13T20:31:00"
+      "Title": "Commando 1",
+      "Session": "ses_1234",
+      "Model": "gpt-4.1",
+      "Prompt": "Du bist ein hilfreicher Assistent. ...",
+      "TimeLoop": {
+        "Enabled": true,
+        "Interval": "5m",
+        "LastRun": "2026-03-13T20:31:00"
       }
     },
     {
-      "title": "Commando 2",
-      "session": "ses_5678",
-      "model": "openai/gpt-4o",
-      "prompt": "Du bist ein Experte für Geschichte. ..."
+      "Title": "Commando 2",
+      "Session": "ses_5678",
+      "Model": "openai/gpt-4o",
+      "Prompt": "Du bist ein Experte für Geschichte. ..."
     }
   ]
 }
 ```
 
-Wenn `model` keinen Provider enthält, verwendet die Bridge standardmäßig `openai`.
+Wenn `Model` keinen Provider enthält, verwendet die Bridge standardmäßig `openai`.
 
-Ist `commands[].timeLoop.enabled=true`, setzt die Bridge das Kommando automatisch nach dem Intervall ab. `lastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
+Ist `Commands[].TimeLoop.Enabled=true`, setzt die Bridge das Kommando automatisch nach dem Intervall ab. `LastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
 
 ## Chatbefehle
 
@@ -96,17 +96,19 @@ Ist `commands[].timeLoop.enabled=true`, setzt die Bridge das Kommando automatisc
 
 - `/stop` - stoppt die Bridge kontrolliert
 
-- `/ss` - sendet den aktuellen Bridge-Status inklusive maskierter Konfiguration
+- `/ss` - sendet den aktuellen Bridge-Status inklusive Grund-Session, Command-Status sowie Loop-, Intervall- und LastRun-Infos
 
 - `/sc` - listet alle konfigurierten Kommandos mit `/c1`, `/c2`, ... auf
 
-- `/c1s` - stoppt ein gerade laufendes konfiguriertes Kommando gezielt
+- `/cNs` - stoppt ein gerade laufendes konfiguriertes Kommando gezielt
 
 ## Logging
 
 Die Bridge legt pro Tag eine CSV-Datei im Format `yyyy-MM-dd-OCBridge.csv` unter `C:\Users\attila\.logs\TelegramOpenCodeBridge\` an, z. B. `C:\Users\attila\.logs\TelegramOpenCodeBridge\2026-03-13-OCBridge.csv`.
 
 Die Logdatei enthält den Header `Timestamp; severity; Message`, rotiert automatisch auf maximal 10 Tage und schreibt keine Chat-Inhalte oder Secrets.
+
+Bei eingehenden Nachrichten protokolliert die Bridge zusätzlich `chatId`, `userId` und `username`, damit freigegebene Telegram-Nutzer sauber in die Konfiguration übernommen werden können. Nicht freigegebene Nachrichten werden still verworfen, nur geloggt und weder beantwortet noch an OpenCode weitergegeben.
 
 ## Nutzung
 
