@@ -37,6 +37,8 @@ public sealed class OpenCodeAvailabilityTracker
         Interlocked.Exchange(ref _availabilityState, isAvailable ? 1 : 0);
     }
 
+    public bool IsAvailable => Volatile.Read(ref _availabilityState) == 1;
+
     public async Task ReportUnavailableAsync(string reason, CancellationToken cancellationToken)
     {
         int previousState = Interlocked.Exchange(ref _availabilityState, 0);

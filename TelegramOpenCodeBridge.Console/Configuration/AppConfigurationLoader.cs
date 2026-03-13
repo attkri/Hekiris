@@ -12,16 +12,10 @@ public sealed class AppConfigurationLoader
         AllowTrailingCommas = true,
     };
 
-    public LoadedBridgeConfiguration Load(string? explicitConfigPath)
+    public LoadedBridgeConfiguration Load()
     {
-        string basePath = ResolveConfigPath(explicitConfigPath);
-        string? localConfigPath = ResolveLocalConfigPath(basePath);
-
+        string basePath = ResolveConfigPath();
         JsonObject mergedConfiguration = LoadObject(basePath);
-        if (localConfigPath is not null)
-        {
-            MergeObjects(mergedConfiguration, LoadObject(localConfigPath));
-        }
 
         BridgeOptions? options = mergedConfiguration.Deserialize<BridgeOptions>(SerializerOptions);
         if (options is null)
@@ -30,23 +24,12 @@ public sealed class AppConfigurationLoader
         }
 
         ApplyTelegramSecret(options, Path.GetDirectoryName(basePath)!);
-        return new LoadedBridgeConfiguration(options, basePath, localConfigPath);
+        return new LoadedBridgeConfiguration(options, basePath);
     }
 
-    private static string ResolveConfigPath(string? explicitConfigPath)
+    private static string ResolveConfigPath()
     {
-        string? configuredPath = explicitConfigPath;
-        if (string.IsNullOrWhiteSpace(configuredPath))
-        {
-            configuredPath = Environment.GetEnvironmentVariable("TOCB_CONFIG_PATH");
-        }
-
-        if (string.IsNullOrWhiteSpace(configuredPath))
-        {
-            configuredPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        }
-
-        string fullPath = Path.GetFullPath(configuredPath);
+        string fullPath = BridgePaths.GetConfigFilePath();
         if (!File.Exists(fullPath))
         {
             throw new ConfigurationException($"Konfigurationsdatei nicht gefunden: {fullPath}");
@@ -54,13 +37,6 @@ public sealed class AppConfigurationLoader
 
         return fullPath;
     }
-
-    private static string? ResolveLocalConfigPath(string configPath)
-    {
-        string localPath = Path.Combine(Path.GetDirectoryName(configPath)!, "appsettings.Local.json");
-        return File.Exists(localPath) ? localPath : null;
-    }
-
     private static JsonObject LoadObject(string path)
     {
         try
@@ -77,21 +53,6 @@ public sealed class AppConfigurationLoader
         }
 
         throw new ConfigurationException($"Die Datei {path} enthält kein JSON-Objekt.");
-    }
-
-    private static void MergeObjects(JsonObject target, JsonObject source)
-    {
-        foreach ((string key, JsonNode? sourceValue) in source)
-        {
-            if (sourceValue is JsonObject sourceObject
-                && target[key] is JsonObject targetObject)
-            {
-                MergeObjects(targetObject, sourceObject);
-                continue;
-            }
-
-            target[key] = sourceValue?.DeepClone();
-        }
     }
 
     private static void ApplyTelegramSecret(BridgeOptions options, string configDirectory)

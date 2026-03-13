@@ -11,7 +11,7 @@ public sealed class CsvBridgeLogger
 
     public CsvBridgeLogger(string? directoryPath = null, Func<DateTime>? nowProvider = null)
     {
-        _directoryPath = directoryPath ?? AppContext.BaseDirectory;
+        _directoryPath = directoryPath ?? Configuration.BridgePaths.GetLogDirectoryPath();
         _nowProvider = nowProvider ?? (() => DateTime.Now);
         Directory.CreateDirectory(_directoryPath);
     }

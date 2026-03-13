@@ -25,8 +25,8 @@ public sealed class ChatRequestQueueTests
             (_, _) => Task.CompletedTask,
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "eins", "ses_a"), CancellationToken.None);
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "zwei", "ses_a"), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "eins", "ses_a", null, null, null), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "zwei", "ses_a", null, null, null), CancellationToken.None);
         await Task.Delay(150);
         await queue.BeginShutdownAsync(CancellationToken.None);
 
@@ -68,14 +68,14 @@ public sealed class ChatRequestQueueTests
             },
             true);
 
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "laufend", "ses_active"), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "laufend", "ses_active", null, null, null), CancellationToken.None);
         await started.Task;
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "wartend", "ses_active"), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "wartend", "ses_active", null, null, null), CancellationToken.None);
 
         Task shutdownTask = queue.BeginShutdownAsync(CancellationToken.None);
         await cancellationObserved.Task;
         await shutdownTask;
-        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "neu", "ses_active"), CancellationToken.None);
+        await queue.EnqueueAsync(new ChatRequest(1, 1, "user", "neu", "ses_active", null, null, null), CancellationToken.None);
 
         Assert.Contains("ses_active", abortedSessions);
         Assert.Contains(rejections, entry => entry.StartsWith("wartend:", StringComparison.Ordinal));

@@ -28,4 +28,3 @@ nul
 publish-out/**
 TestResults/**
 tmp/**
-TelegramOpenCodeBridge.Console/appsettings.Local.json

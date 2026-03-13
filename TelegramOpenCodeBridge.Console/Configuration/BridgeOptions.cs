@@ -11,6 +11,8 @@ public sealed class BridgeOptions
     public RuntimeOptions Runtime { get; set; } = new();
 
     public List<ChatBindingOptions> Chats { get; set; } = new();
+
+    public List<ConfiguredCommandOptions> Commands { get; set; } = new();
 }
 
 public sealed class TelegramOptions
@@ -64,7 +66,18 @@ public sealed class ChatBindingOptions
     public List<long> AllowedUserIds { get; set; } = new();
 }
 
-public sealed record LoadedBridgeConfiguration(BridgeOptions Options, string ConfigPath, string? LocalConfigPath);
+public sealed class ConfiguredCommandOptions
+{
+    public string Title { get; set; } = string.Empty;
+
+    public string Session { get; set; } = string.Empty;
+
+    public string Model { get; set; } = string.Empty;
+
+    public string Prompt { get; set; } = string.Empty;
+}
+
+public sealed record LoadedBridgeConfiguration(BridgeOptions Options, string ConfigPath);
 
 public sealed class ConfigurationValidationResult
 {

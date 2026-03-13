@@ -61,7 +61,11 @@ public sealed class OpenCodeClient : IDisposable
         return true;
     }
 
-    public async Task<string> SendPromptAsync(string sessionId, string prompt, CancellationToken cancellationToken)
+    public async Task<string> SendPromptAsync(
+        string sessionId,
+        string prompt,
+        OpenCodeModelSelection? modelSelection,
+        CancellationToken cancellationToken)
     {
         PromptRequest request = new()
         {
@@ -73,6 +77,13 @@ public sealed class OpenCodeClient : IDisposable
                     Text = prompt,
                 },
             ],
+            Model = modelSelection is null
+                ? null
+                : new PromptModel
+                {
+                    ProviderId = modelSelection.ProviderId,
+                    ModelId = modelSelection.ModelId,
+                },
         };
 
         using HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"session/{Uri.EscapeDataString(sessionId)}/message", request, SerializerOptions, cancellationToken);
@@ -153,14 +164,27 @@ public sealed class OpenCodeClient : IDisposable
             return;
         }
 
-        string details = await response.Content.ReadAsStringAsync(cancellationToken);
-        throw new OpenCodeException($"HTTP {(int)response.StatusCode}: {details}".Trim());
+        _ = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new OpenCodeException($"HTTP {(int)response.StatusCode} von OpenCode.");
     }
 
     private sealed class PromptRequest
     {
         [JsonPropertyName("parts")]
         public List<PromptPart> Parts { get; set; } = new();
+
+        [JsonPropertyName("model")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public PromptModel? Model { get; set; }
+    }
+
+    private sealed class PromptModel
+    {
+        [JsonPropertyName("providerID")]
+        public string ProviderId { get; set; } = string.Empty;
+
+        [JsonPropertyName("modelID")]
+        public string ModelId { get; set; } = string.Empty;
     }
 
     private sealed class PromptPart
@@ -211,5 +235,25 @@ public sealed class OpenCodeException : Exception
     public OpenCodeException(string message)
         : base(message)
     {
+    }
+}
+
+public sealed record OpenCodeModelSelection(string ProviderId, string ModelId)
+{
+    public static OpenCodeModelSelection Parse(string configuredModel)
+    {
+        if (string.IsNullOrWhiteSpace(configuredModel))
+        {
+            throw new OpenCodeException("Das konfigurierte Modell darf nicht leer sein.");
+        }
+
+        string trimmed = configuredModel.Trim();
+        int slashIndex = trimmed.IndexOf('/');
+        if (slashIndex > 0 && slashIndex < trimmed.Length - 1)
+        {
+            return new OpenCodeModelSelection(trimmed[..slashIndex], trimmed[(slashIndex + 1)..]);
+        }
+
+        return new OpenCodeModelSelection("openai", trimmed);
     }
 }

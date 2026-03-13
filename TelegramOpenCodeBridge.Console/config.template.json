@@ -1,7 +1,7 @@
 {
   "Telegram": {
     "ApiBaseUrl": "https://api.telegram.org",
-    "SecretSourcePath": "C:\\Users\\attila\\.secrets\\NovaKrickBot_Telegram.secrets.json",
+    "SecretSourcePath": "..\\..\\.secrets\\NovaKrickBot_Telegram.secrets.json",
     "BotToken": "",
     "PollingTimeoutSeconds": 20
   },
@@ -27,5 +27,7 @@
       "TelegramChatId": 1700580252,
       "OpenCodeSessionId": "ses_317f98079ffewZTBZBlX9YR4On"
     }
+  ],
+  "Commands": [
   ]
 }

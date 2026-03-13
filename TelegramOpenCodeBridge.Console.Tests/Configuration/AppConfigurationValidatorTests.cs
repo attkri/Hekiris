@@ -31,6 +31,10 @@ public sealed class AppConfigurationValidatorTests
             [
                 new ChatBindingOptions { TelegramChatId = 0, OpenCodeSessionId = "" },
             ],
+            Commands =
+            [
+                new ConfiguredCommandOptions { Title = "", Session = "abc", Model = "", Prompt = "" },
+            ],
         };
 
         ConfigurationValidationResult result = new AppConfigurationValidator().Validate(options);
@@ -42,6 +46,10 @@ public sealed class AppConfigurationValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("QueueCapacityPerChat", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeHealthCheckIntervalSeconds", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeSessionId", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Commands[1].Title", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Commands[1].Session", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Commands[1].Model", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Commands[1].Prompt", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -62,6 +70,34 @@ public sealed class AppConfigurationValidatorTests
         ConfigurationValidationResult result = new AppConfigurationValidator().Validate(CreateValidOptions());
 
         Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_AllowsRelativeSecretPathFromFixedConfigDirectory()
+    {
+        string configDirectory = BridgePaths.GetConfigDirectoryPath();
+        Directory.CreateDirectory(configDirectory);
+        string secretFileName = $"validator-secret-{Guid.NewGuid():N}.json";
+        string secretFilePath = Path.Combine(configDirectory, secretFileName);
+
+        try
+        {
+            File.WriteAllText(secretFilePath, "{}");
+
+            BridgeOptions options = CreateValidOptions();
+            options.Telegram.SecretSourcePath = secretFileName;
+
+            ConfigurationValidationResult result = new AppConfigurationValidator().Validate(options);
+
+            Assert.True(result.IsValid);
+        }
+        finally
+        {
+            if (File.Exists(secretFilePath))
+            {
+                File.Delete(secretFilePath);
+            }
+        }
     }
 
     private static BridgeOptions CreateValidOptions()

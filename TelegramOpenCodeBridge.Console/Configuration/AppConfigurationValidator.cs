@@ -87,6 +87,36 @@ public sealed class AppConfigurationValidator
             }
         }
 
+        for (int index = 0; index < options.Commands.Count; index++)
+        {
+            ConfiguredCommandOptions command = options.Commands[index];
+            int displayIndex = index + 1;
+
+            if (string.IsNullOrWhiteSpace(command.Title))
+            {
+                result.Add($"Commands[{displayIndex}].Title darf nicht leer sein.");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.Session))
+            {
+                result.Add($"Commands[{displayIndex}].Session darf nicht leer sein.");
+            }
+            else if (!command.Session.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add($"Commands[{displayIndex}].Session muss mit 'ses' beginnen.");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.Model))
+            {
+                result.Add($"Commands[{displayIndex}].Model darf nicht leer sein.");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.Prompt))
+            {
+                result.Add($"Commands[{displayIndex}].Prompt darf nicht leer sein.");
+            }
+        }
+
         return result;
     }
 
@@ -94,6 +124,6 @@ public sealed class AppConfigurationValidator
     {
         return Path.IsPathRooted(path)
             ? path
-            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, path));
+            : Path.GetFullPath(Path.Combine(BridgePaths.GetConfigDirectoryPath(), path));
     }
 }

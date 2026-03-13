@@ -1,6 +1,5 @@
 using System.Net;
-using System.Net.Http.Headers;
-using System.Text;
+using System.Text.Json;
 using TelegramOpenCodeBridge.OpenCode;
 
 namespace TelegramOpenCodeBridge.Tests.OpenCode;
@@ -32,11 +31,43 @@ public sealed class OpenCodeClientTests
 
         using OpenCodeClient client = new(httpClient);
 
-        string result = await client.SendPromptAsync("ses_test", "Ping", CancellationToken.None);
+        string result = await client.SendPromptAsync("ses_test", "Ping", null, CancellationToken.None);
 
         Assert.Equal("Hallo" + Environment.NewLine + Environment.NewLine + "Welt", result);
         Assert.Equal(HttpMethod.Post, handler.Requests.Single().Method);
         Assert.EndsWith("/session/ses_test/message", handler.Requests.Single().RequestUri!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SendPromptAsync_SendsConfiguredModel()
+    {
+        StubHttpMessageHandler handler = new(
+            _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                {
+                  "info": {},
+                  "parts": [
+                    { "type": "text", "text": "OK" }
+                  ]
+                }
+                """),
+            });
+
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("http://localhost:4096/"),
+        };
+
+        using OpenCodeClient client = new(httpClient);
+
+        await client.SendPromptAsync("ses_test", "Ping", OpenCodeModelSelection.Parse("openai/gpt-4.1"), CancellationToken.None);
+
+        string body = await handler.Requests.Single().Content!.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(body);
+
+        Assert.Equal("openai", document.RootElement.GetProperty("model").GetProperty("providerID").GetString());
+        Assert.Equal("gpt-4.1", document.RootElement.GetProperty("model").GetProperty("modelID").GetString());
     }
 
     [Fact]
@@ -80,6 +111,15 @@ public sealed class OpenCodeClientTests
         using OpenCodeClient client = new(httpClient);
 
         await Assert.ThrowsAsync<OpenCodeException>(() => client.GetHealthAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public void Parse_DefaultsToOpenAiProvider()
+    {
+        OpenCodeModelSelection selection = OpenCodeModelSelection.Parse("gpt-4");
+
+        Assert.Equal("openai", selection.ProviderId);
+        Assert.Equal("gpt-4", selection.ModelId);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler

@@ -1,6 +1,6 @@
 # My Memory Context
 
-**Stand:** 2026-03-13 18:04
+**Stand:** 2026-03-13 18:51
 
 ## Fortschritt
 
@@ -16,11 +16,13 @@
 
 - Der Start-/Stop- und Offline-Monitor ist per Code umgesetzt, aber ein echtes langlaufendes Telegram-Ende-zu-Ende wurde in dieser Session nicht manuell beobachtet.
 
+- Die produktive Konfiguration liegt jetzt außerhalb des Repos unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`; Repo-Änderungen an `config.template.json` wirken erst nach Übernahme in diese Datei.
+
 **Offene Fragen:**
 
 **Nächste Schritte:**
 
-- [X] `OpenCodeSessionId` in `TelegramOpenCodeBridge.Console/appsettings.json` auf die bestehende Session `ses_317f98079ffewZTBZBlX9YR4On` setzen.
+- [X] `OpenCodeSessionId` in `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` auf die bestehende Session `ses_317f98079ffewZTBZBlX9YR4On` setzen.
 
 - [X] `tocb check` erneut ausführen.
 
@@ -44,7 +46,7 @@
 
 **Konsequenz:**
 
-- `tocb config show` maskiert `BotToken` und `OpenCode.Password`; `TelegramOpenCodeBridge.Console/appsettings.json` enthält nur den Pfad zur Secret-Datei und keinen Klartext-Token.
+- `tocb config show` maskiert `BotToken` und `OpenCode.Password`; die produktive Datei `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` enthält keinen Klartext-Token, sondern nur den Pfad zur Secret-Datei.
 
 **Verworfen:**
 
@@ -105,6 +107,42 @@
 **Verworfen:**
 
 - Reines Console-Logging ohne Telegram-Statusmeldungen sowie Logeinträge mit Chatnachricht-Inhalten.
+
+### Feste Pfade für Konfiguration und Logs (2026-03-13)
+
+**Entscheidung:**
+
+- Die produktive Konfiguration liegt fest unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`, und die CSV-Logs liegen fest unter `C:\Users\attila\.logs\TelegramOpenCodeBridge\`.
+
+**Begründung:**
+
+- Der User wollte die Betriebsartefakte außerhalb des Repo-Outputs an stabilen Benutzerpfaden haben.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/Configuration/BridgePaths.cs` liefert die festen Zielpfade, `AppConfigurationLoader` lädt nur noch die feste Config-Datei, und `config.template.json` dient im Repo nur noch als Vorlage.
+
+**Verworfen:**
+
+- Eine Konfiguration im EXE-Ordner oder Logs neben `tocb.exe`.
+
+### Chat-Kommandos aus Konfigurationssatz (2026-03-13)
+
+**Entscheidung:**
+
+- Die Bridge behandelt `/help`, `/stop`, `/ss`, `/sc` intern und führt konfigurierte Kommandos `/c1`, `/c2`, ... über den `Commands`-Block der Config aus.
+
+**Begründung:**
+
+- Der User wollte feste, wiederverwendbare Chat-Kommandos mit eigenem Prompt, eigener Session und eigenem Modell.
+
+**Konsequenz:**
+
+- `TelegramOpenCodeBridge.Console/Application/BridgeChatCommandParser.cs` parst die Befehle, und `OpenCodeClient` kann pro Kommando ein Modell senden; fehlt ein Provider im Modellstring, wird `openai` angenommen.
+
+**Verworfen:**
+
+- Frei eingegebene Prompt-Fragmente hinter `/c1` sowie eine separate Kommandoverwaltung außerhalb der JSON-Konfiguration.
 
 ## User-Profil
 
@@ -178,7 +216,7 @@
 
 **Lösung:**
 
-- `TelegramOpenCodeBridge.Console/appsettings.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `tocb check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
+- `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `tocb check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
 
 ## Nützliche Kommandos (kurz)
 
@@ -188,7 +226,7 @@
 
 - `dotnet run --project TelegramOpenCodeBridge.Console -- start`: Bridge starten.
 
-- `TelegramOpenCodeBridge.Console/bin/Debug/net10.0/YYYY-MM-DD-OCBridge.csv`: Tageslog der Bridge.
+- `C:\Users\attila\.logs\TelegramOpenCodeBridge\YYYY-MM-DD-OCBridge.csv`: Tageslog der Bridge.
 
 ## Context
 
@@ -206,7 +244,9 @@
 
 - **Dateien:** `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/appsettings.json`
+- **Dateien:** `TelegramOpenCodeBridge.Console/config.template.json`
+
+- **Dateien:** `TelegramOpenCodeBridge.Console/Application/BridgeChatCommandParser.cs`
 
 - **Dateien:** `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs`
 

@@ -119,4 +119,7 @@ public sealed record ChatRequest(
     long? UserId,
     string? Username,
     string Text,
-    string OpenCodeSessionId);
+    string OpenCodeSessionId,
+    string? ConfiguredModel,
+    string? ConfiguredCommandTitle,
+    int? ConfiguredCommandNumber);
