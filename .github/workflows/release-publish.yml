@@ -1,0 +1,50 @@
+name: Release Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x"
+
+      - name: Restore dependencies
+        run: dotnet restore Hekiris.slnx
+
+      - name: Run tests
+        run: dotnet test Hekiris.slnx -c Release --no-restore
+
+      - name: Publish Windows build
+        run: dotnet publish Hekiris.Console/Hekiris.Console.csproj -c Release -r win-x64 --self-contained false --no-restore -o publish-out/Hekiris-win-x64
+
+      - name: Add runtime config template
+        shell: pwsh
+        run: Copy-Item Hekiris.Console/config.template.json publish-out/Hekiris-win-x64/config.template.json -Force
+
+      - name: Create release archive
+        shell: pwsh
+        run: Compress-Archive -Path publish-out/Hekiris-win-x64/* -DestinationPath publish-out/Hekiris-win-x64.zip -Force
+
+      - name: Extract current release notes
+        shell: pwsh
+        run: |
+          python -c "from pathlib import Path; import re; text=Path('Release-Notes.md').read_text(encoding='utf-8'); match=re.search(r'^## Current\s*(.*?)(?=^## |\Z)', text, flags=re.S|re.M); body=(match.group(1).strip() if match else '').strip(); Path('release-body.md').write_text(body or '- No release notes available.', encoding='utf-8')"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-body.md
+          files: publish-out/Hekiris-win-x64.zip

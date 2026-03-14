@@ -35,7 +35,7 @@ public sealed class ChatRequestQueue
         {
             if (_notifyWhenStopping)
             {
-                await _rejector(request, "Hekiris wird gerade beendet. Neue Nachrichten werden aktuell nicht mehr angenommen.", cancellationToken);
+                await _rejector(request, "Hekiris is shutting down. New messages are no longer accepted.", cancellationToken);
             }
 
             return false;
@@ -45,7 +45,7 @@ public sealed class ChatRequestQueue
         ChatQueueState queue = _queues.GetOrAdd(queueKey, CreateQueueState);
         if (!queue.Writer.TryWrite(request))
         {
-            await _rejector(request, "Die Warteschlange für diesen Chat ist voll. Bitte versuche es gleich erneut.", cancellationToken);
+            await _rejector(request, "The queue for this chat is full. Please try again shortly.", cancellationToken);
             return false;
         }
 
@@ -154,7 +154,7 @@ public sealed class ChatRequestQueue
             {
                 if (_notifyWhenStopping)
                 {
-                    await _rejector(request, "Hekiris wird gerade beendet. Diese Nachricht wurde nicht mehr verarbeitet.", CancellationToken.None);
+                    await _rejector(request, "Hekiris is shutting down. This message was not processed anymore.", CancellationToken.None);
                 }
 
                 continue;

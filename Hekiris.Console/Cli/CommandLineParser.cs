@@ -28,7 +28,7 @@ public static class CommandLineParser
             return new ParsedCommand(BridgeCommand.ConfigShow);
         }
 
-        throw new CommandLineException($"Unbekanntes Kommando: {string.Join(' ', tokens)}");
+        throw new CommandLineException($"Unknown command: {string.Join(' ', tokens)}");
     }
 
     public static string GetHelpText()
@@ -36,17 +36,17 @@ public static class CommandLineParser
         return """
 Hekiris
 
-Verwendung:
+Usage:
   Hekiris start
   Hekiris check
   Hekiris config show
   Hekiris help
 
-Kommandos:
-  start       Startet Hekiris und beginnt mit dem Empfang von Telegram-Nachrichten.
-  check       Prüft Konfiguration, Telegram-Zugriff, OpenCode-Health und Session-Mapping.
-  config show Zeigt die geladene Konfiguration mit maskierten Secrets an.
-  help        Zeigt diese Hilfe an.
+Commands:
+  start       Starts Hekiris and begins receiving Telegram messages.
+  check       Validates configuration, Telegram access, OpenCode health, and session mappings.
+  config show Shows the loaded configuration with masked secrets.
+  help        Shows this help.
 """;
     }
 

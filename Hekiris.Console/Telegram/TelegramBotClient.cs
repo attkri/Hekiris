@@ -37,7 +37,7 @@ public sealed class TelegramBotClient : IDisposable
     public async Task<TelegramBotIdentity> GetMeAsync(CancellationToken cancellationToken)
     {
         TelegramEnvelope<TelegramBotIdentity>? response = await PostAsync<object, TelegramEnvelope<TelegramBotIdentity>>("getMe", new { }, cancellationToken);
-        return response?.Result ?? throw new TelegramException("Telegram lieferte keine Bot-Identität.");
+        return response?.Result ?? throw new TelegramException("Telegram did not return a bot identity.");
     }
 
     public async Task<IReadOnlyList<TelegramUpdate>> GetUpdatesAsync(long offset, int timeoutSeconds, CancellationToken cancellationToken)
@@ -78,18 +78,18 @@ public sealed class TelegramBotClient : IDisposable
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            throw new TelegramException("Telegram hat den Bot-Token abgelehnt.");
+            throw new TelegramException("Telegram rejected the bot token.");
         }
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new TelegramException($"Telegram meldet HTTP {(int)response.StatusCode}: {body}".Trim());
+            throw new TelegramException($"Telegram returned HTTP {(int)response.StatusCode}: {body}".Trim());
         }
 
         TResponse? envelope = JsonSerializer.Deserialize<TResponse>(body, SerializerOptions);
         if (envelope is TelegramEnvelope envelopeBase && !envelopeBase.Ok)
         {
-            throw new TelegramException(envelopeBase.Description ?? "Telegram meldet einen unbekannten API-Fehler.");
+            throw new TelegramException(envelopeBase.Description ?? "Telegram returned an unknown API error.");
         }
 
         return envelope;

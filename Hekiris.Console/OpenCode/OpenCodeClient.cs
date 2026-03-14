@@ -39,11 +39,11 @@ public sealed class OpenCodeClient : IDisposable
         using HttpResponseMessage response = await _httpClient.GetAsync("global/health", cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         OpenCodeHealth health = (await response.Content.ReadFromJsonAsync<OpenCodeHealth>(SerializerOptions, cancellationToken))
-            ?? throw new OpenCodeException("OpenCode-Healthcheck lieferte keine gültige Antwort.");
+            ?? throw new OpenCodeException("OpenCode health check returned an invalid response.");
 
         if (!health.Healthy)
         {
-            throw new OpenCodeException("OpenCode meldet unhealthy=false.");
+            throw new OpenCodeException("OpenCode reported unhealthy=false.");
         }
 
         return health;
@@ -92,7 +92,7 @@ public sealed class OpenCodeClient : IDisposable
         PromptResponse? promptResponse = await response.Content.ReadFromJsonAsync<PromptResponse>(SerializerOptions, cancellationToken);
         if (promptResponse is null)
         {
-            throw new OpenCodeException("OpenCode lieferte keine verwertbare Antwort.");
+            throw new OpenCodeException("OpenCode returned no usable response.");
         }
 
         string text = string.Join(
@@ -165,7 +165,7 @@ public sealed class OpenCodeClient : IDisposable
         }
 
         _ = await response.Content.ReadAsStringAsync(cancellationToken);
-        throw new OpenCodeException($"HTTP {(int)response.StatusCode} von OpenCode.");
+        throw new OpenCodeException($"HTTP {(int)response.StatusCode} returned by OpenCode.");
     }
 
     private sealed class PromptRequest
@@ -244,7 +244,7 @@ public sealed record OpenCodeModelSelection(string ProviderId, string ModelId)
     {
         if (string.IsNullOrWhiteSpace(configuredModel))
         {
-            throw new OpenCodeException("Das konfigurierte Modell darf nicht leer sein.");
+            throw new OpenCodeException("The configured model must not be empty.");
         }
 
         string trimmed = configuredModel.Trim();

@@ -45,7 +45,7 @@ public sealed class OpenCodeAvailabilityTrackerTests
         await tracker.ReportAvailableAsync(CancellationToken.None);
 
         Assert.Equal(2, notifications.Count);
-        Assert.Contains(notifications, message => message.Contains("wieder erreichbar", StringComparison.Ordinal));
+        Assert.Contains(notifications, message => message.Contains("reachable again", StringComparison.Ordinal));
         Assert.Single(infos);
     }
 }

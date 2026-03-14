@@ -8,12 +8,12 @@ public sealed class AppConfigurationValidator
 
         if (!Uri.TryCreate(options.Telegram.ApiBaseUrl, UriKind.Absolute, out _))
         {
-            result.Add("Telegram.ApiBaseUrl muss eine absolute URL sein.");
+            result.Add("Telegram.ApiBaseUrl must be an absolute URL.");
         }
 
         if (string.IsNullOrWhiteSpace(options.Telegram.BotToken))
         {
-            result.Add("Telegram.BotToken fehlt. Entweder direkt setzen oder über Telegram.SecretSourcePath laden.");
+            result.Add("Telegram.BotToken is missing. Set it directly or load it through Telegram.SecretSourcePath.");
         }
 
         if (!string.IsNullOrWhiteSpace(options.Telegram.SecretSourcePath))
@@ -21,43 +21,43 @@ public sealed class AppConfigurationValidator
             string resolvedSecretPath = ResolvePath(options.Telegram.SecretSourcePath);
             if (!File.Exists(resolvedSecretPath) && string.IsNullOrWhiteSpace(options.Telegram.BotToken))
             {
-                result.Add($"Telegram.SecretSourcePath wurde gesetzt, aber die Datei wurde nicht gefunden: {resolvedSecretPath}");
+                result.Add($"Telegram.SecretSourcePath is set, but the file was not found: {resolvedSecretPath}");
             }
         }
 
         if (options.Telegram.PollingTimeoutSeconds < 0)
         {
-            result.Add("Telegram.PollingTimeoutSeconds darf nicht negativ sein.");
+            result.Add("Telegram.PollingTimeoutSeconds must not be negative.");
         }
 
         if (!Uri.TryCreate(options.OpenCode.BaseUrl, UriKind.Absolute, out _))
         {
-            result.Add("OpenCode.BaseUrl muss eine absolute URL sein.");
+            result.Add("OpenCode.BaseUrl must be an absolute URL.");
         }
 
         if (options.OpenCode.RequestTimeoutSeconds <= 0)
         {
-            result.Add("OpenCode.RequestTimeoutSeconds muss größer als 0 sein.");
+            result.Add("OpenCode.RequestTimeoutSeconds must be greater than 0.");
         }
 
         if (options.Runtime.QueueCapacityPerChat <= 0)
         {
-            result.Add("Runtime.QueueCapacityPerChat muss größer als 0 sein.");
+            result.Add("Runtime.QueueCapacityPerChat must be greater than 0.");
         }
 
         if (options.Runtime.TelegramRetryDelaySeconds <= 0)
         {
-            result.Add("Runtime.TelegramRetryDelaySeconds muss größer als 0 sein.");
+            result.Add("Runtime.TelegramRetryDelaySeconds must be greater than 0.");
         }
 
         if (options.Runtime.OpenCodeHealthCheckIntervalSeconds <= 0)
         {
-            result.Add("Runtime.OpenCodeHealthCheckIntervalSeconds muss größer als 0 sein.");
+            result.Add("Runtime.OpenCodeHealthCheckIntervalSeconds must be greater than 0.");
         }
 
         if (options.Chats.Count == 0)
         {
-            result.Add("Mindestens ein Eintrag in Chats ist erforderlich.");
+            result.Add("At least one entry in Chats is required.");
         }
 
         IEnumerable<long> duplicateChatIds = options.Chats
@@ -67,34 +67,34 @@ public sealed class AppConfigurationValidator
 
         foreach (long chatId in duplicateChatIds)
         {
-            result.Add($"TelegramChatId ist mehrfach konfiguriert: {chatId}");
+            result.Add($"TelegramChatId is configured more than once: {chatId}");
         }
 
         foreach (ChatBindingOptions binding in options.Chats)
         {
             if (binding.TelegramChatId == 0)
             {
-                result.Add("Chats[].TelegramChatId darf nicht 0 sein.");
+                result.Add("Chats[].TelegramChatId must not be 0.");
             }
 
             if (string.IsNullOrWhiteSpace(binding.OpenCodeSessionId))
             {
-                result.Add($"Für Chat {binding.TelegramChatId} fehlt die OpenCodeSessionId.");
+                result.Add($"OpenCodeSessionId is missing for chat {binding.TelegramChatId}.");
             }
             else if (!binding.OpenCodeSessionId.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add($"Die OpenCodeSessionId für Chat {binding.TelegramChatId} muss mit 'ses' beginnen.");
+                result.Add($"OpenCodeSessionId for chat {binding.TelegramChatId} must start with 'ses'.");
             }
 
             if (binding.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
             {
-                result.Add($"Chats[{binding.TelegramChatId}].AllowedUsernames darf keine leeren Werte enthalten.");
+                result.Add($"Chats[{binding.TelegramChatId}].AllowedUsernames must not contain empty values.");
             }
         }
 
         if (options.AccessControl.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
         {
-            result.Add("AccessControl.AllowedUsernames darf keine leeren Werte enthalten.");
+            result.Add("AccessControl.AllowedUsernames must not contain empty values.");
         }
 
         for (int index = 0; index < options.Commands.Count; index++)
@@ -104,33 +104,33 @@ public sealed class AppConfigurationValidator
 
             if (string.IsNullOrWhiteSpace(command.Title))
             {
-                result.Add($"Commands[{displayIndex}].Title darf nicht leer sein.");
+                result.Add($"Commands[{displayIndex}].Title must not be empty.");
             }
 
             if (string.IsNullOrWhiteSpace(command.Session))
             {
-                result.Add($"Commands[{displayIndex}].Session darf nicht leer sein.");
+                result.Add($"Commands[{displayIndex}].Session must not be empty.");
             }
             else if (!command.Session.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add($"Commands[{displayIndex}].Session muss mit 'ses' beginnen.");
+                result.Add($"Commands[{displayIndex}].Session must start with 'ses'.");
             }
 
             if (string.IsNullOrWhiteSpace(command.Model))
             {
-                result.Add($"Commands[{displayIndex}].Model darf nicht leer sein.");
+                result.Add($"Commands[{displayIndex}].Model must not be empty.");
             }
 
             if (string.IsNullOrWhiteSpace(command.Prompt))
             {
-                result.Add($"Commands[{displayIndex}].Prompt darf nicht leer sein.");
+                result.Add($"Commands[{displayIndex}].Prompt must not be empty.");
             }
 
             if (command.TimeLoop?.Enabled == true)
             {
                 if (string.IsNullOrWhiteSpace(command.TimeLoop.Interval))
                 {
-                    result.Add($"Commands[{displayIndex}].TimeLoop.Interval darf nicht leer sein, wenn TimeLoop.Enabled=true ist.");
+                    result.Add($"Commands[{displayIndex}].TimeLoop.Interval must not be empty when TimeLoop.Enabled=true.");
                 }
                 else
                 {
@@ -140,7 +140,7 @@ public sealed class AppConfigurationValidator
                     }
                     catch (FormatException exception)
                     {
-                        result.Add($"Commands[{displayIndex}].TimeLoop.Interval ist ungültig: {exception.Message}");
+                        result.Add($"Commands[{displayIndex}].TimeLoop.Interval is invalid: {exception.Message}");
                     }
                 }
             }

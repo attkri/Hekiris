@@ -27,7 +27,7 @@ public sealed class OpenCodeAvailabilityTracker
             return;
         }
 
-        const string message = "OpenCode-Server ist wieder erreichbar.";
+        const string message = "OpenCode server is reachable again.";
         _infoLogger(message);
         await _notificationSender(message, cancellationToken);
     }
@@ -48,10 +48,10 @@ public sealed class OpenCodeAvailabilityTracker
         }
 
         string logMessage = string.IsNullOrWhiteSpace(reason)
-            ? "OpenCode-Server ist aktuell nicht erreichbar."
-            : $"OpenCode-Server ist aktuell nicht erreichbar: {reason}";
+            ? "OpenCode server is currently unreachable."
+            : $"OpenCode server is currently unreachable: {reason}";
 
-        const string notificationMessage = "Warnung: Der OpenCode-Server ist aktuell nicht erreichbar. Neue Anfragen können fehlschlagen.";
+        const string notificationMessage = "Warning: the OpenCode server is currently unreachable. New requests may fail.";
 
         _warningLogger(logMessage);
         await _notificationSender(notificationMessage, cancellationToken);

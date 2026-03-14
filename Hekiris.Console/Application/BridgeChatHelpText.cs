@@ -5,13 +5,13 @@ public static class BridgeChatHelpText
     public static string GetText()
     {
         return """
-/help => zeigt die verfügbaren Hekiris-Befehle an
-/stop => stoppt Hekiris
-/ss => zeigt den aktuellen Status von Hekiris an
-/sc => zeigt die verfügbaren Befehle an
-/cNs => stoppt das laufende Kommando N (siehe /ss)
+/help => shows the available Hekiris commands
+/stop => stops Hekiris
+/ss => shows the current Hekiris status
+/sc => shows the available commands
+/cNs => stops running command N (see /ss)
 
-Konfigurierte Kommandos rufst du mit /c1, /c2, /c3 usw. auf.
+Configured commands can be run with /c1, /c2, /c3, and so on.
 """;
     }
 }

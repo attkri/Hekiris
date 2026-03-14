@@ -78,8 +78,8 @@ public sealed class ChatRequestQueueTests
         await queue.EnqueueAsync(new ChatRequest(1, new[] { 1L }, 1, "user", "neu", "ses_active", null, null, null), CancellationToken.None);
 
         Assert.Contains("ses_active", abortedSessions);
-        Assert.Contains(rejections, entry => entry.StartsWith("wartend:", StringComparison.Ordinal));
-        Assert.Contains(rejections, entry => entry.StartsWith("neu:", StringComparison.Ordinal));
+        Assert.Contains(rejections, entry => entry.StartsWith("wartend:", StringComparison.Ordinal) || entry.StartsWith("queued:", StringComparison.Ordinal));
+        Assert.Contains(rejections, entry => entry.StartsWith("neu:", StringComparison.Ordinal) || entry.StartsWith("new:", StringComparison.Ordinal));
     }
 
     [Fact]

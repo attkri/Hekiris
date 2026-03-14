@@ -44,21 +44,21 @@ public sealed class CommandTimeLoopScheduler
     {
         if (string.IsNullOrWhiteSpace(configuredInterval))
         {
-            throw new FormatException("Das TimeLoop-Intervall darf nicht leer sein.");
+            throw new FormatException("TimeLoop interval must not be empty.");
         }
 
         string value = configuredInterval.Trim();
         char unit = char.ToLowerInvariant(value[^1]);
         if (!int.TryParse(value[..^1], out int amount) || amount <= 0)
         {
-            throw new FormatException($"Ungültiges TimeLoop-Intervall: {configuredInterval}");
+            throw new FormatException($"Invalid TimeLoop interval: {configuredInterval}");
         }
 
         return unit switch
         {
             'm' => TimeSpan.FromMinutes(amount),
             'h' => TimeSpan.FromHours(amount),
-            _ => throw new FormatException($"Ungültige TimeLoop-Einheit in {configuredInterval}. Erlaubt sind m oder h."),
+            _ => throw new FormatException($"Invalid TimeLoop unit in {configuredInterval}. Allowed values are m or h."),
         };
     }
 }

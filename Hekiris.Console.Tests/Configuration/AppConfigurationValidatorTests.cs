@@ -79,7 +79,7 @@ public sealed class AppConfigurationValidatorTests
         ConfigurationValidationResult result = new AppConfigurationValidator().Validate(options);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.Contains("mehrfach", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("more than once", StringComparison.Ordinal));
     }
 
     [Fact]

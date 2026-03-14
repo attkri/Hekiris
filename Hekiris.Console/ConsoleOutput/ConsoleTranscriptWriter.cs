@@ -22,7 +22,7 @@ public sealed class ConsoleTranscriptWriter
             System.Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {role}:");
             System.Console.WriteLine(text);
             System.Console.WriteLine();
-            _csvLogger.Write(severity, logMessage ?? $"Transkript-Ausgabe für Rolle {role}.");
+            _csvLogger.Write(severity, logMessage ?? $"Transcript output for role {role}.");
         }
     }
 

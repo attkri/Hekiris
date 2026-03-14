@@ -119,7 +119,7 @@ public sealed class BridgeApplication
         catch (Exception exception)
         {
             failed = true;
-            _console.WriteError($"Telegram-Check fehlgeschlagen: {exception.Message}");
+            _console.WriteError($"Telegram check failed: {exception.Message}");
         }
 
         try
@@ -130,7 +130,7 @@ public sealed class BridgeApplication
         catch (Exception exception)
         {
             failed = true;
-            _console.WriteError($"OpenCode-Healthcheck fehlgeschlagen: {exception.Message}");
+            _console.WriteError($"OpenCode health check failed: {exception.Message}");
         }
 
         IEnumerable<string> sessionIds = options.Chats
@@ -147,16 +147,16 @@ public sealed class BridgeApplication
                 if (!exists)
                 {
                     failed = true;
-                    _console.WriteError($"OpenCode-Session nicht gefunden: {sessionId}");
+                    _console.WriteError($"OpenCode session not found: {sessionId}");
                     continue;
                 }
 
-                _console.WriteInfo($"OpenCode-Session gefunden: {sessionId}");
+                _console.WriteInfo($"OpenCode session found: {sessionId}");
             }
             catch (Exception exception)
             {
                 failed = true;
-                _console.WriteError($"Session-Check für {sessionId} fehlgeschlagen: {exception.Message}");
+                _console.WriteError($"Session check failed for {sessionId}: {exception.Message}");
             }
         }
 
@@ -175,7 +175,7 @@ public sealed class BridgeApplication
 
     private void WriteValidationErrors(ConfigurationValidationResult validation)
     {
-        _console.WriteError("Konfiguration ungültig:");
+        _console.WriteError("Configuration is invalid:");
 
         foreach (string error in validation.Errors)
         {
@@ -195,7 +195,7 @@ public sealed class BridgeApplication
 
         if (insecureRemoteHttp && string.IsNullOrWhiteSpace(options.OpenCode.Password))
         {
-            _console.WriteWarning("Warnung: OpenCode wird unverschlüsselt über HTTP ohne Passwort auf einem entfernten Host angesprochen.");
+            _console.WriteWarning("Warning: OpenCode is reached over unencrypted HTTP without a password on a remote host.");
         }
     }
 
@@ -235,7 +235,7 @@ public sealed class BridgeApplication
 
         public async Task<int> RunAsync(CancellationToken cancellationToken)
         {
-            _console.WriteInfo("Hekiris gestartet. Mit CTRL+C beenden.");
+            _console.WriteInfo("Hekiris started. Press CTRL+C to stop.");
 
             long offset = 0;
             Task healthMonitorTask = MonitorOpenCodeAvailabilityAsync(_pollingCancellationTokenSource.Token);
@@ -251,7 +251,7 @@ public sealed class BridgeApplication
 
             if (_openCodeAvailabilityTracker.IsAvailable)
             {
-                await EvaluateScheduledCommandsAsync("beim Start", cancellationToken);
+                await EvaluateScheduledCommandsAsync("at startup", cancellationToken);
             }
 
             ConsoleCancelEventHandler handler = (_, eventArgs) =>
@@ -281,7 +281,7 @@ public sealed class BridgeApplication
                     }
                     catch (Exception exception)
                     {
-                        _console.WriteError($"Telegram-Polling fehlgeschlagen: {exception.Message}");
+                        _console.WriteError($"Telegram polling failed: {exception.Message}");
                         await DelayBeforeRetryAsync();
                         continue;
                     }
@@ -301,7 +301,7 @@ public sealed class BridgeApplication
                         }
                         catch (Exception exception)
                         {
-                            _console.WriteError($"Telegram-Update {update.UpdateId} konnte nicht verarbeitet werden: {exception.Message}");
+                            _console.WriteError($"Telegram update {update.UpdateId} could not be processed: {exception.Message}");
                         }
                     }
                 }
@@ -341,14 +341,14 @@ public sealed class BridgeApplication
             }
 
             long nextOffset = pendingUpdates.Max(update => update.UpdateId) + 1L;
-            _console.WriteInfo($"{pendingUpdates.Count} ausstehende Telegram-Updates werden beim Start übersprungen.");
+            _console.WriteInfo($"Skipping {pendingUpdates.Count} pending Telegram updates at startup.");
             return nextOffset;
         }
 
         private async Task HandleIncomingMessageAsync(TelegramMessage message)
         {
             string incomingText = message.Text!.Trim();
-            _console.WriteInfo($"Eingehende Nachricht: Chat {message.Chat.Id}, UserId {FormatUserId(message.From?.Id)}, Username {FormatUsername(message.From?.Username)}.");
+            _console.WriteInfo($"Incoming message: chat {message.Chat.Id}, userId {FormatUserId(message.From?.Id)}, username {FormatUsername(message.From?.Username)}.");
 
             if (IsStopping)
             {
@@ -358,20 +358,20 @@ public sealed class BridgeApplication
 
             if (!string.Equals(message.Chat.Type, "private", StringComparison.OrdinalIgnoreCase))
             {
-                _console.WriteInfo($"Chat {message.Chat.Id} wird ignoriert, da nur private Chats unterstützt werden.");
+                _console.WriteInfo($"Chat {message.Chat.Id} is ignored because only private chats are supported.");
                 return;
             }
 
             ChatBindingOptions? chatBinding = _options.Chats.FirstOrDefault(item => item.TelegramChatId == message.Chat.Id);
             if (chatBinding is null)
             {
-                _console.WriteInfo($"Chat {message.Chat.Id} ist nicht freigegeben und wird ignoriert.");
+                _console.WriteInfo($"Chat {message.Chat.Id} is not allowed and will be ignored.");
                 return;
             }
 
             if (!IsUserAllowed(message, chatBinding))
             {
-                _console.WriteInfo($"Nicht freigegebene Nachricht verworfen: Chat {message.Chat.Id}, UserId {FormatUserId(message.From?.Id)}, Username {FormatUsername(message.From?.Username)}.");
+                _console.WriteInfo($"Unauthorized message discarded: chat {message.Chat.Id}, userId {FormatUserId(message.From?.Id)}, username {FormatUsername(message.From?.Username)}.");
                 return;
             }
 
@@ -380,24 +380,24 @@ public sealed class BridgeApplication
             {
                 case BridgeChatCommandType.Help:
                     await _telegramClient.SendMessageAsync(message.Chat.Id, BridgeChatHelpText.GetText(), CancellationToken.None);
-                    _console.WriteInfo($"Chat-Hilfe an Chat {message.Chat.Id} gesendet.");
+                    _console.WriteInfo($"Help sent to chat {message.Chat.Id}.");
                     return;
                 case BridgeChatCommandType.Stop:
                     await RequestStopAsync();
                     return;
                 case BridgeChatCommandType.ShowStatus:
                     await _telegramClient.SendMessageAsync(message.Chat.Id, BuildStatusText(message.Chat.Id), CancellationToken.None);
-                    _console.WriteInfo($"Status an Chat {message.Chat.Id} gesendet.");
+                    _console.WriteInfo($"Status sent to chat {message.Chat.Id}.");
                     return;
                 case BridgeChatCommandType.ShowCommands:
                     await _telegramClient.SendMessageAsync(message.Chat.Id, BuildConfiguredCommandsText(), CancellationToken.None);
-                    _console.WriteInfo($"Kommandoübersicht an Chat {message.Chat.Id} gesendet.");
+                    _console.WriteInfo($"Command list sent to chat {message.Chat.Id}.");
                     return;
                 case BridgeChatCommandType.StopConfiguredCommand:
                     if (chatCommand.CommandIndex is null || chatCommand.CommandIndex.Value >= _options.Commands.Count)
                     {
-                        await _telegramClient.SendMessageAsync(message.Chat.Id, "Dieses konfigurierte Kommando gibt es nicht. Nutze /sc für die Liste.", CancellationToken.None);
-                        _console.WriteWarning($"Ungültiges Stopp-Kommando /c{(chatCommand.CommandIndex ?? 0) + 1}s in Chat {message.Chat.Id} angefordert.");
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, "This configured command does not exist. Use /sc for the list.", CancellationToken.None);
+                        _console.WriteWarning($"Invalid stop command /c{(chatCommand.CommandIndex ?? 0) + 1}s requested in chat {message.Chat.Id}.");
                         return;
                     }
 
@@ -405,21 +405,21 @@ public sealed class BridgeApplication
                     bool stopped = await _chatRequestQueue.TryAbortActiveConfiguredCommandAsync(commandNumber, CancellationToken.None);
                     if (stopped)
                     {
-                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Kommando /c{commandNumber} wurde gestoppt.", CancellationToken.None);
-                        _console.WriteInfo($"Konfiguriertes Kommando /c{commandNumber} in Chat {message.Chat.Id} gestoppt.");
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Command /c{commandNumber} was stopped.", CancellationToken.None);
+                        _console.WriteInfo($"Configured command /c{commandNumber} in chat {message.Chat.Id} was stopped.");
                     }
                     else
                     {
-                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Kommando /c{commandNumber} läuft aktuell nicht.", CancellationToken.None);
-                        _console.WriteInfo($"Konfiguriertes Kommando /c{commandNumber} in Chat {message.Chat.Id} war nicht aktiv.");
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, $"Command /c{commandNumber} is not running right now.", CancellationToken.None);
+                        _console.WriteInfo($"Configured command /c{commandNumber} in chat {message.Chat.Id} was not active.");
                     }
 
                     return;
                 case BridgeChatCommandType.RunConfiguredCommand:
                     if (chatCommand.CommandIndex is null || chatCommand.CommandIndex.Value >= _options.Commands.Count)
                     {
-                        await _telegramClient.SendMessageAsync(message.Chat.Id, "Dieses konfigurierte Kommando gibt es nicht. Nutze /sc für die Liste.", CancellationToken.None);
-                        _console.WriteWarning($"Ungültiges Kommando /c{(chatCommand.CommandIndex ?? 0) + 1} in Chat {message.Chat.Id} angefordert.");
+                        await _telegramClient.SendMessageAsync(message.Chat.Id, "This configured command does not exist. Use /sc for the list.", CancellationToken.None);
+                        _console.WriteWarning($"Invalid command /c{(chatCommand.CommandIndex ?? 0) + 1} requested in chat {message.Chat.Id}.");
                         return;
                     }
 
@@ -437,11 +437,11 @@ public sealed class BridgeApplication
                         false);
 
                     await _chatRequestQueue.EnqueueAsync(configuredRequest, CancellationToken.None);
-                    _console.WriteInfo($"Konfiguriertes Kommando /c{chatCommand.CommandIndex.Value + 1} für Chat {message.Chat.Id} eingeplant.");
+                    _console.WriteInfo($"Configured command /c{chatCommand.CommandIndex.Value + 1} queued for chat {message.Chat.Id}.");
                     return;
                 case BridgeChatCommandType.Unknown:
-                    await _telegramClient.SendMessageAsync(message.Chat.Id, "Unbekanntes Hekiris-Kommando. Nutze /help.", CancellationToken.None);
-                    _console.WriteWarning($"Unbekanntes Hekiris-Kommando in Chat {message.Chat.Id} empfangen.");
+                    await _telegramClient.SendMessageAsync(message.Chat.Id, "Unknown Hekiris command. Use /help.", CancellationToken.None);
+                    _console.WriteWarning($"Unknown Hekiris command received in chat {message.Chat.Id}.");
                     return;
             }
 
@@ -511,24 +511,24 @@ public sealed class BridgeApplication
                 ? $"/c{request.ConfiguredCommandNumber} {request.ConfiguredCommandTitle}"
                 : string.Empty;
             string inboundConsoleText = isConfiguredCommand
-                ? $"Konfiguriertes Kommando {commandLabel}"
+                ? $"Configured command {commandLabel}"
                 : request.Text;
             string outboundConsoleText = isConfiguredCommand
-                ? $"Konfiguriertes Kommando {commandLabel} an OpenCode gesendet."
-                : $"Anfrage an OpenCode gesendet: \"{request.Text}\"";
+                ? $"Configured command {commandLabel} sent to OpenCode."
+                : $"Request sent to OpenCode: \"{request.Text}\"";
 
             _console.WriteTranscript(
                 "USER",
                 inboundConsoleText,
                 isConfiguredCommand
-                    ? $"Konfiguriertes Kommando /c{request.ConfiguredCommandNumber} in Chat {request.ChatId} empfangen."
-                    : $"Telegram-Nachricht in Chat {request.ChatId} empfangen.");
+                    ? $"Configured command /c{request.ConfiguredCommandNumber} received in chat {request.ChatId}."
+                    : $"Telegram message received in chat {request.ChatId}.");
             _console.WriteTranscript(
                 "BRIDGE",
                 outboundConsoleText,
                 isConfiguredCommand
-                    ? $"OpenCode-Kommando /c{request.ConfiguredCommandNumber} für Chat {request.ChatId} an Session {request.OpenCodeSessionId} mit Modell {request.ConfiguredModel} gesendet."
-                    : $"OpenCode-Anfrage für Chat {request.ChatId} an Session {request.OpenCodeSessionId} gesendet.");
+                    ? $"OpenCode command /c{request.ConfiguredCommandNumber} for chat {request.ChatId} sent to session {request.OpenCodeSessionId} with model {request.ConfiguredModel}."
+                    : $"OpenCode request for chat {request.ChatId} sent to session {request.OpenCodeSessionId}.");
 
             try
             {
@@ -541,7 +541,7 @@ public sealed class BridgeApplication
 
                 if (string.IsNullOrWhiteSpace(response))
                 {
-                    response = "OpenCode hat keine Textantwort geliefert.";
+                    response = "OpenCode returned no text response.";
                 }
 
                 string telegramResponse = isConfiguredCommand
@@ -552,16 +552,16 @@ public sealed class BridgeApplication
                     "AGENT",
                     telegramResponse,
                     isConfiguredCommand
-                        ? $"OpenCode-Antwort für {commandLabel} in Chat {request.ChatId} empfangen."
-                        : $"OpenCode-Antwort für Chat {request.ChatId} empfangen.");
+                        ? $"OpenCode response for {commandLabel} received in chat {request.ChatId}."
+                        : $"OpenCode response received in chat {request.ChatId}.");
                 await SendMessageToRequestTargetsAsync(request, telegramResponse, CancellationToken.None);
-                _console.WriteInfo($"Telegram-Antwort für Auftrag aus Chat {request.ChatId} gesendet.");
+                _console.WriteInfo($"Telegram response sent for request from chat {request.ChatId}.");
             }
             catch (Exception exception)
             {
                 string userMessage = IsStopping
-                    ? "Hekiris wird beendet. Der laufende Auftrag wurde abgebrochen."
-                    : "Die Anfrage an OpenCode ist fehlgeschlagen. Bitte versuche es erneut.";
+                    ? "Hekiris is shutting down. The running job was aborted."
+                    : "The request to OpenCode failed. Please try again.";
 
                 if (isConfiguredCommand)
                 {
@@ -573,12 +573,12 @@ public sealed class BridgeApplication
                     await _openCodeAvailabilityTracker.ReportUnavailableAsync(exception.Message, CancellationToken.None);
                 }
 
-                _console.WriteError($"Fehler bei Chat {request.ChatId}: {exception.Message}");
+                _console.WriteError($"Error in chat {request.ChatId}: {exception.Message}");
 
                 if (!IsStopping || _options.Runtime.RejectMessagesWhenStopping)
                 {
                     await SendMessageToRequestTargetsAsync(request, userMessage, CancellationToken.None);
-                    _console.WriteInfo($"Fehlermeldung für Auftrag aus Chat {request.ChatId} gesendet.");
+                    _console.WriteInfo($"Error message sent for request from chat {request.ChatId}.");
                 }
             }
         }
@@ -587,26 +587,26 @@ public sealed class BridgeApplication
         {
             ChatRuntimeStatusSnapshot runtimeStatus = _chatRequestQueue.GetChatRuntimeStatus(chatId, _options.Commands.Count);
             StringBuilder builder = new();
-            builder.AppendLine("Hekiris-Status:");
-            builder.AppendLine($"- Hekiris: {(IsStopping ? "wird beendet" : "läuft")}");
-            builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "erreichbar" : "nicht erreichbar")}");
-            builder.AppendLine($"- Grund-Session: {FormatRuntimeState(runtimeStatus.BaseSessionState)}");
+            builder.AppendLine("Hekiris status:");
+            builder.AppendLine($"- Hekiris: {(IsStopping ? "stopping" : "running")}");
+            builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "reachable" : "unreachable")}");
+            builder.AppendLine($"- Base session: {FormatRuntimeState(runtimeStatus.BaseSessionState)}");
 
             if (runtimeStatus.ActiveRequest is not null)
             {
                 builder.AppendLine(runtimeStatus.ActiveRequest.ConfiguredCommandNumber is null
-                    ? "- Aktiver Auftrag: Grund-Session"
-                    : $"- Aktiver Auftrag: /c{runtimeStatus.ActiveRequest.ConfiguredCommandNumber} {runtimeStatus.ActiveRequest.ConfiguredCommandTitle}");
+                    ? "- Active job: base session"
+                    : $"- Active job: /c{runtimeStatus.ActiveRequest.ConfiguredCommandNumber} {runtimeStatus.ActiveRequest.ConfiguredCommandTitle}");
             }
             else
             {
-                builder.AppendLine("- Aktiver Auftrag: keiner");
+                builder.AppendLine("- Active job: none");
             }
 
             if (_options.Commands.Count > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine("Kommandos:");
+                builder.AppendLine("Commands:");
 
                 for (int index = 0; index < _options.Commands.Count; index++)
                 {
@@ -615,17 +615,17 @@ public sealed class BridgeApplication
                     ConfiguredCommandOptions command = _options.Commands[index];
                     CommandTimeLoopOptions? timeLoop = command.TimeLoop;
 
-                    string loopStatus = timeLoop?.Enabled == true ? "an" : "aus";
+                    string loopStatus = timeLoop?.Enabled == true ? "on" : "off";
                     string interval = string.IsNullOrWhiteSpace(timeLoop?.Interval) ? "-" : timeLoop!.Interval;
                     string lastRun = timeLoop?.LastRun is null ? "-" : timeLoop.LastRun.Value.ToString("yyyy-MM-dd HH:mm:ss");
 
                     builder.AppendLine(
-                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Loop {loopStatus} | Intervall {interval} | LastRun {lastRun}");
+                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Loop {loopStatus} | Interval {interval} | LastRun {lastRun}");
                 }
             }
 
             builder.AppendLine();
-            builder.AppendLine("Hinweis: /sc zeigt die verfügbaren Kommandos an.");
+            builder.AppendLine("Note: /sc shows the available commands.");
             return builder.ToString().TrimEnd();
         }
 
@@ -633,11 +633,11 @@ public sealed class BridgeApplication
         {
             if (_options.Commands.Count == 0)
             {
-                return "Es sind aktuell keine konfigurierten Kommandos hinterlegt.";
+                return "There are currently no configured commands.";
             }
 
             StringBuilder builder = new();
-            builder.AppendLine("Verfügbare Kommandos:");
+            builder.AppendLine("Available commands:");
 
             for (int index = 0; index < _options.Commands.Count; index++)
             {
@@ -645,7 +645,7 @@ public sealed class BridgeApplication
             }
 
             builder.AppendLine();
-            builder.AppendLine("/cNs stoppt ein laufendes Commando");
+            builder.AppendLine("/cNs stops a running command");
 
             return builder.ToString().TrimEnd();
         }
@@ -654,9 +654,9 @@ public sealed class BridgeApplication
         {
             return state switch
             {
-                RequestRuntimeState.Running => "läuft",
-                RequestRuntimeState.Queued => "wartet",
-                _ => "frei",
+                RequestRuntimeState.Running => "running",
+                RequestRuntimeState.Queued => "queued",
+                _ => "free",
             };
         }
 
@@ -686,7 +686,7 @@ public sealed class BridgeApplication
                         continue;
                     }
 
-                    await EvaluateScheduledCommandsAsync("nach Zeitplan", cancellationToken);
+                    await EvaluateScheduledCommandsAsync("on schedule", cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -731,7 +731,7 @@ public sealed class BridgeApplication
                     bool enqueued = await _chatRequestQueue.EnqueueAsync(scheduledRequest, cancellationToken);
                     if (!enqueued)
                     {
-                        _console.WriteWarning($"Geplantes Kommando /c{index + 1} {command.Title} konnte nicht eingeplant werden.");
+                        _console.WriteWarning($"Scheduled command /c{index + 1} {command.Title} could not be queued.");
                         continue;
                     }
 
@@ -739,9 +739,9 @@ public sealed class BridgeApplication
                     await _commandTimeLoopStateStore.UpdateLastRunAsync(index, lastRun, cancellationToken);
                     command.TimeLoop ??= new CommandTimeLoopOptions();
                     command.TimeLoop.LastRun = lastRun;
-                    _console.WriteInfo($"TimeLoop-LastRun für /c{index + 1} {command.Title} auf {lastRun:yyyy-MM-dd HH:mm:ss} aktualisiert.");
+                    _console.WriteInfo($"TimeLoop LastRun for /c{index + 1} {command.Title} updated to {lastRun:yyyy-MM-dd HH:mm:ss}.");
 
-                    string notification = $"Kommando /c{index + 1} {command.Title} wurde automatisch abgesetzt ({reason}).";
+                    string notification = $"Command /c{index + 1} {command.Title} was triggered automatically ({reason}).";
                     await SendMessageToChatsAsync(targetChatIds, notification, cancellationToken);
                     _console.WriteInfo(notification);
                 }
@@ -756,12 +756,12 @@ public sealed class BridgeApplication
         {
             _console.WriteInfo($"Chat {request.ChatId}: {reason}");
             await SendMessageToRequestTargetsAsync(request, reason, cancellationToken);
-            _console.WriteInfo($"Systemmeldung für Auftrag aus Chat {request.ChatId} gesendet.");
+            _console.WriteInfo($"System message sent for request from chat {request.ChatId}.");
         }
 
         private async Task AbortActiveRequestAsync(ChatRequest request, CancellationToken cancellationToken)
         {
-            _console.WriteInfo($"Sende Stop-Signal an OpenCode-Session {request.OpenCodeSessionId}.");
+            _console.WriteInfo($"Sending stop signal to OpenCode session {request.OpenCodeSessionId}.");
             await _openCodeClient.AbortSessionAsync(request.OpenCodeSessionId, cancellationToken);
         }
 
@@ -771,9 +771,9 @@ public sealed class BridgeApplication
             {
                 await _telegramClient.SendMessageAsync(
                     chatId,
-                    "Hekiris wird gerade beendet. Neue Nachrichten werden aktuell nicht mehr angenommen.",
+                    "Hekiris is shutting down. New messages are no longer accepted.",
                     CancellationToken.None);
-                _console.WriteInfo($"Stopp-Hinweis an Chat {chatId} gesendet.");
+                _console.WriteInfo($"Shutdown notice sent to chat {chatId}.");
             }
         }
 
@@ -793,7 +793,7 @@ public sealed class BridgeApplication
 
                         if (!wasAvailable)
                         {
-                            await EvaluateScheduledCommandsAsync("nach Wiederverbindung", cancellationToken);
+                            await EvaluateScheduledCommandsAsync("after reconnection", cancellationToken);
                         }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -817,13 +817,13 @@ public sealed class BridgeApplication
             {
                 await _openCodeClient.GetHealthAsync(cancellationToken);
                 _openCodeAvailabilityTracker.SetAvailability(true);
-                return "Hekiris wurde gestartet und ist betriebsbereit. (/help)";
+                return "Hekiris started and is ready. (/help)";
             }
             catch (Exception exception)
             {
                 _openCodeAvailabilityTracker.SetAvailability(false);
-                _console.WriteWarning($"OpenCode-Server ist beim Start nicht erreichbar: {exception.Message}");
-                return "Hekiris wurde gestartet, aber der OpenCode-Server ist aktuell nicht erreichbar. (/help)";
+                _console.WriteWarning($"OpenCode server is unreachable at startup: {exception.Message}");
+                return "Hekiris started, but the OpenCode server is currently unreachable. (/help)";
             }
         }
 
@@ -834,11 +834,11 @@ public sealed class BridgeApplication
                 try
                 {
                     await _telegramClient.SendMessageAsync(chatId, message, cancellationToken);
-                    _console.WriteInfo($"Hekiris-Statusmeldung an Chat {chatId} gesendet.");
+                    _console.WriteInfo($"Hekiris status message sent to chat {chatId}.");
                 }
                 catch (Exception exception)
                 {
-                    _console.WriteWarning($"Hekiris-Statusmeldung an Chat {chatId} konnte nicht gesendet werden: {exception.Message}");
+                    _console.WriteWarning($"Hekiris status message could not be sent to chat {chatId}: {exception.Message}");
                 }
             }
         }
@@ -876,8 +876,8 @@ public sealed class BridgeApplication
                 return;
             }
 
-            _console.WriteInfo("Stopp angefordert. Laufende Aufträge werden beendet.");
-            await SendBridgeStatusNotificationAsync("Hekiris wird beendet. Neue Nachrichten werden nicht mehr angenommen.", CancellationToken.None);
+            _console.WriteInfo("Shutdown requested. Running jobs are being stopped.");
+            await SendBridgeStatusNotificationAsync("Hekiris is shutting down. New messages are no longer accepted.", CancellationToken.None);
             _pollingCancellationTokenSource.Cancel();
             await _chatRequestQueue.BeginShutdownAsync(CancellationToken.None);
         }

@@ -1,130 +1,181 @@
 # Hekiris
 
-Hekiris = Hekate (Kreuzungen) + Iris (Übermittlung)
+Hekiris is a .NET 10 console application that bridges Telegram chats to a running OpenCode server.
 
-## Brand-Richtung
+It keeps one base OpenCode session per Telegram chat, supports dedicated command sessions, scheduled command loops, runtime status messages, and fixed user-level config and log locations outside the repository.
 
-- One-liner: Hekiris bringt OpenCode in die Kanäle, die wir bereits nutzen.
-- Gute Claim-Richtung: Der direkte Weg von Nachricht zu Aktion.
-- Produktarchitektur, die ich empfehlen würde:
+## Overview
 
-- Hekiris Core — Hauptprodukt
-- Hekiris Chronos — Scheduler / Intervall-Prompts
-- Hekiris Hermes — Schnellkommandos / Shortcuts
-- Hekiris Argus — Health / Monitoring
-- Hekiris Portals — Kanaladapter wie Telegram, WhatsApp, Voice
+- `Hekiris.slnx` - Visual Studio solution
 
-## Überblick
+- `Hekiris.Console/` - production console application
 
-`Hekiris` ist eine .NET-10-Console-App, die Telegram-Nachrichten aus freigegebenen Chats an einen laufenden OpenCode-Server weiterleitet.
+- `Hekiris.Console.Tests/` - xUnit test project
 
-Die Anwendung nutzt pro Telegram-Chat genau eine vorkonfigurierte OpenCode-Session, verarbeitet Textnachrichten seriell je Chat und sendet die Antwort zurück an Telegram.
+## Features
 
-Die Steuerung erfolgt über JSON-Konfiguration und die CLI-Kommandos `Hekiris start`, `Hekiris check`, `Hekiris config show` und `Hekiris help`.
+- Receives Telegram messages from explicitly allowed chats and users
 
-Beim Start und beim geordneten Beenden sendet Hekiris Statusmeldungen an die konfigurierten Telegram-Chats. Zusätzlich überwacht Hekiris den OpenCode-Server im Hintergrund und meldet Erreichbarkeitswechsel ebenfalls an Telegram.
+- Forwards normal chat messages to one configured base OpenCode session per chat
 
-Im Chat unterstützt Hekiris außerdem `/help`, `/stop`, `/ss`, `/sc`, konfigurierte Kommandos wie `/c1` und Stop-Kommandos wie `/c1s`.
+- Runs configured chat commands like `/c1` in dedicated command sessions without changing the base session
 
-Secrets bleiben außerhalb des Repos: Die App kann das Telegram-Token aus einer externen Secret-Datei einlesen und maskiert sensible Werte bei der Konfigurationsausgabe.
+- Supports scheduled command execution through `Commands[].TimeLoop`
 
-Die erste Version ist bewusst schlank gehalten: keine GUI, kein Windows-Service, kein Datenbankserver und keine Gruppenchat-Logik.
+- Sends startup, shutdown, and OpenCode availability notifications back to Telegram
 
-## Voraussetzungen
+- Writes daily CSV logs to a fixed user log directory without storing chat message content
+
+## Requirements
 
 - Windows 11
 
-- .NET SDK 10.x
+- .NET SDK 10.x for building from source
 
-- Ein laufender OpenCode-Server, standardmäßig `http://192.168.0.101:4096/`
+- .NET 10 Desktop Runtime for running the packaged release build
 
-- Eine vorhandene OpenCode-Session pro Telegram-Chat
+- A running OpenCode server, for example `http://localhost:4096/`
 
-- Eine lokale Telegram-Secret-Datei, z. B. unter `C:\Users\attila\.secrets\NovaKrickBot_Telegram.secrets.json`
+- An existing OpenCode session for each configured base chat and command
 
-## Projektstruktur
+- A local Telegram secret file, for example `%USERPROFILE%\.secrets\telegram.secrets.json`
 
-- `Hekiris.slnx` - Visual-Studio-Projektmappe
+## Installation
 
-- `Hekiris.Console/` - Console-App
+1. Clone the repository.
 
-- `Hekiris.Console.Tests/` - xUnit-Tests
+2. Restore and build the solution:
 
-## Konfiguration
+   ```powershell
+   dotnet restore .\Hekiris.slnx
+   dotnet build .\Hekiris.slnx
+   ```
 
-Hekiris lädt ihre feste Konfiguration aus `C:\Users\attila\.config\Hekiris\config.json`. Eine Repo-Vorlage liegt in `Hekiris.Console/config.template.json`.
+3. Create the fixed runtime config directory if it does not exist:
 
-Die Konfiguration wird mit großgeschriebenem Anfangsbuchstaben pro JSON-Key geführt, z. B. `Telegram`, `OpenCode`, `AccessControl`, `AllowedUserIds`.
+   ```powershell
+   New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\Hekiris"
+   ```
 
-Der Eintrag `Telegram.SecretSourcePath` kann relativ zur festen Config-Datei gesetzt werden. Die Vorlage nutzt dafür `..\..\.secrets\NovaKrickBot_Telegram.secrets.json`.
+4. Copy the template config into the fixed runtime location:
 
-Wichtige Bereiche:
+   ```powershell
+   Copy-Item .\Hekiris.Console\config.template.json "$env:USERPROFILE\.config\Hekiris\config.json"
+   ```
 
-- `Telegram` - Bot-API, Polling und externer Secret-Pfad
+5. Edit `%USERPROFILE%\.config\Hekiris\config.json`.
 
-- `OpenCode` - Basis-URL, optionaler Basic-Auth-Benutzer und Passwort
+6. Run a connection check:
 
-- `AccessControl` - globale Freigaben für Telegram-Benutzer über `AllowedUserIds` und `AllowedUsernames`
+   ```powershell
+   dotnet run --project .\Hekiris.Console -- check
+   ```
 
-- `Runtime` - Queue-Größe, Retry-Verhalten und Startvalidierung
+## Configuration
 
-- `Runtime.OpenCodeHealthCheckIntervalSeconds` - Intervall für die OpenCode-Erreichbarkeitsprüfung
+Hekiris always loads its runtime config from `%USERPROFILE%\.config\Hekiris\config.json`.
 
-- `Chats` - Mapping `TelegramChatId -> OpenCodeSessionId` mit optionalen `AllowedUserIds` und `AllowedUsernames` je Chat
+The JSON format uses PascalCase keys such as `Telegram`, `OpenCode`, `AccessControl`, `Chats`, `Commands`, and `TimeLoop`.
 
-- `Commands` - vorkonfigurierte Chat-Kommandos mit Titel, Session, Modell und Prompt sowie optionalem `TimeLoop`
+`Telegram.SecretSourcePath` may be relative to the fixed config file location. The template uses `..\..\.secrets\telegram.secrets.json`.
 
-Beispiel für `Commands`:
+Important sections:
+
+- `Telegram` - Telegram API settings and bot token source
+
+- `OpenCode` - OpenCode base URL, optional basic auth, and request timeout
+
+- `AccessControl` - global `AllowedUserIds` and `AllowedUsernames`
+
+- `Runtime` - queue sizes, polling behavior, health checks, and shutdown behavior
+
+- `Chats` - base session mapping `TelegramChatId -> OpenCodeSessionId`
+
+- `Commands` - predefined command presets with `Title`, `Session`, `Model`, `Prompt`, and optional `TimeLoop`
+
+Example:
 
 ```json
 {
+  "Telegram": {
+    "ApiBaseUrl": "https://api.telegram.org",
+    "SecretSourcePath": "..\\..\\.secrets\\telegram.secrets.json",
+    "BotToken": "",
+    "PollingTimeoutSeconds": 20
+  },
+  "AccessControl": {
+    "AllowedUserIds": [123456789],
+    "AllowedUsernames": ["example_user"]
+  },
+  "Chats": [
+    {
+      "TelegramChatId": 123456789,
+      "OpenCodeSessionId": "ses_base_example"
+    }
+  ],
   "Commands": [
     {
-      "Title": "Commando 1",
-      "Session": "ses_1234",
-      "Model": "gpt-4.1",
-      "Prompt": "Du bist ein hilfreicher Assistent. ...",
+      "Title": "Daily Summary",
+      "Session": "ses_daily_example",
+      "Model": "openai/gpt-5.4",
+      "Prompt": "Create today\'s summary.",
       "TimeLoop": {
-        "Enabled": true,
-        "Interval": "5m",
-        "LastRun": "2026-03-13T20:31:00"
+        "Enabled": false,
+        "Interval": "1h"
       }
-    },
-    {
-      "Title": "Commando 2",
-      "Session": "ses_5678",
-      "Model": "openai/gpt-4o",
-      "Prompt": "Du bist ein Experte für Geschichte. ..."
     }
   ]
 }
 ```
 
-Wenn `Model` keinen Provider enthält, verwendet Hekiris standardmäßig `openai`.
+If `Model` does not contain a provider prefix, Hekiris defaults to `openai`.
 
-Ist `Commands[].TimeLoop.Enabled=true`, setzt Hekiris das Kommando automatisch nach dem Intervall ab. `LastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
+If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatically. `LastRun` is optional in the file and is updated by Hekiris when a scheduled command is queued so failed runs are not retried immediately in a tight loop.
 
-## Chatbefehle
+## First-Time Setup Checklist
 
-- `/help` - zeigt die verfügbaren Hekiris-Befehle an
+- Set valid Telegram allowlists in `AccessControl.AllowedUserIds` and `AccessControl.AllowedUsernames`
 
-- `/stop` - stoppt Hekiris kontrolliert
+- Fill `Chats[]` with the Telegram chat ID and its base OpenCode session ID
 
-- `/ss` - sendet den aktuellen Hekiris-Status inklusive Grund-Session, Command-Status sowie Loop-, Intervall- und LastRun-Infos
+- Add any optional `Commands[]` entries you want to run from chat or on a schedule
 
-- `/sc` - listet alle konfigurierten Kommandos mit `/c1`, `/c2`, ... auf
+- Make sure each referenced OpenCode session already exists
 
-- `/cNs` - stoppt ein gerade laufendes konfiguriertes Kommando gezielt
+- Run `Hekiris check` before `Hekiris start`
+
+## Chat Commands
+
+- `/help` - show available Hekiris commands
+
+- `/stop` - stop Hekiris gracefully
+
+- `/ss` - show the current Hekiris runtime status, including base session, command states, loop state, interval, and `LastRun`
+
+- `/sc` - list configured commands and their `/cN` shortcuts
+
+- `/cN` - run configured command `N`
+
+- `/cNs` - stop configured command `N` if it is currently running
 
 ## Logging
 
-Hekiris legt pro Tag eine CSV-Datei im Format `yyyy-MM-dd-Hekiris.csv` unter `C:\Users\attila\.logs\Hekiris\` an, z. B. `C:\Users\attila\.logs\Hekiris\2026-03-13-Hekiris.csv`.
+Hekiris writes one CSV log file per day to `%USERPROFILE%\.logs\Hekiris\` using the format `yyyy-MM-dd-Hekiris.csv`.
 
-Die Logdatei enthält den Header `Timestamp; severity; Message`, rotiert automatisch auf maximal 10 Tage und schreibt keine Chat-Inhalte oder Secrets.
+The log format is:
 
-Bei eingehenden Nachrichten protokolliert Hekiris zusätzlich `chatId`, `userId` und `username`, damit freigegebene Telegram-Nutzer sauber in die Konfiguration übernommen werden können. Nicht freigegebene Nachrichten werden still verworfen, nur geloggt und weder beantwortet noch an OpenCode weitergegeben.
+```text
+Timestamp; severity; Message
+2026-03-14 08:15_00; INFO      ; Scheduled command /c1 queued.
+```
 
-## Nutzung
+The log keeps up to 10 days, excludes secrets, and does not store chat message text.
+
+Incoming Telegram metadata such as `chatId`, `userId`, and `username` is logged so allowlists can be configured safely.
+
+Unauthorized messages are silently discarded, logged, and never forwarded to OpenCode.
+
+## Running Hekiris
 
 ```powershell
 dotnet run --project .\Hekiris.Console -- help
@@ -133,8 +184,43 @@ dotnet run --project .\Hekiris.Console -- config show
 dotnet run --project .\Hekiris.Console -- start
 ```
 
+## Install From Release
+
+1. Download the latest `Hekiris-win-x64.zip` from GitHub Releases.
+
+2. Ensure the .NET 10 Desktop Runtime is installed.
+
+3. Extract the ZIP to a folder of your choice.
+
+4. Create the fixed runtime config directory if it does not exist:
+
+   ```powershell
+   New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\Hekiris"
+   ```
+
+5. Copy `config.template.json` from the extracted release folder to `%USERPROFILE%\.config\Hekiris\config.json`.
+
+6. Edit the config with your real Telegram token source, OpenCode URL, allowlist, chats, sessions, and commands.
+
+7. Run:
+
+   ```powershell
+   .\Hekiris.exe check
+   .\Hekiris.exe start
+   ```
+
 ## Tests
 
 ```powershell
 dotnet test .\Hekiris.slnx
 ```
+
+## Releases
+
+GitHub releases are built by `.github/workflows/release-publish.yml` when a tag matching `v*.*.*` is pushed.
+
+Each release publishes a `win-x64` build archive and uses the current notes from `Release-Notes.md`.
+
+## Release Notes
+
+User-facing release highlights are tracked in `Release-Notes.md`.

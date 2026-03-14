@@ -24,7 +24,7 @@ public sealed class CommandTimeLoopStateStore
 
             if (commandIndex < 0 || commandIndex >= commands.Count || commands[commandIndex] is not JsonObject commandObject)
             {
-                throw new ConfigurationException($"Commands[{commandIndex + 1}] konnte für LastRun nicht gefunden werden.");
+                throw new ConfigurationException($"Commands[{commandIndex + 1}] could not be found for LastRun.");
             }
 
             JsonObject timeLoop = GetOrCreateObject(commandObject, "timeLoop", "TimeLoop");
@@ -51,7 +51,7 @@ public sealed class CommandTimeLoopStateStore
             return root;
         }
 
-        throw new ConfigurationException($"Die Datei {_configPath} enthält kein JSON-Objekt.");
+        throw new ConfigurationException($"The file {_configPath} does not contain a JSON object.");
     }
 
     private static JsonArray GetOrCreateArray(JsonObject parent, params string[] candidateNames)

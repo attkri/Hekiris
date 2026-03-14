@@ -28,7 +28,7 @@ public sealed class AppConfigurationLoader
         BridgeOptions? options = mergedConfiguration.Deserialize<BridgeOptions>(SerializerOptions);
         if (options is null)
         {
-            throw new ConfigurationException("Die JSON-Konfiguration konnte nicht gelesen werden.");
+            throw new ConfigurationException("The JSON configuration could not be loaded.");
         }
 
         ApplyTelegramSecret(options, Path.GetDirectoryName(basePath)!);
@@ -42,7 +42,7 @@ public sealed class AppConfigurationLoader
             : Path.GetFullPath(configPathOverride);
         if (!File.Exists(fullPath))
         {
-            throw new ConfigurationException($"Konfigurationsdatei nicht gefunden: {fullPath}");
+            throw new ConfigurationException($"Configuration file not found: {fullPath}");
         }
 
         return fullPath;
@@ -59,10 +59,10 @@ public sealed class AppConfigurationLoader
         }
         catch (JsonException exception)
         {
-            throw new ConfigurationException($"Ungültiges JSON in {path}: {exception.Message}");
+            throw new ConfigurationException($"Invalid JSON in {path}: {exception.Message}");
         }
 
-        throw new ConfigurationException($"Die Datei {path} enthält kein JSON-Objekt.");
+        throw new ConfigurationException($"The file {path} does not contain a JSON object.");
     }
 
     private static void ApplyTelegramSecret(BridgeOptions options, string configDirectory)
@@ -86,7 +86,7 @@ public sealed class AppConfigurationLoader
         TelegramSecretFile? telegramSecret = JsonSerializer.Deserialize<TelegramSecretFile>(File.ReadAllText(secretPath), SerializerOptions);
         if (telegramSecret is null)
         {
-            throw new ConfigurationException($"Die Telegram-Secret-Datei ist leer oder ungültig: {secretPath}");
+            throw new ConfigurationException($"The Telegram secret file is empty or invalid: {secretPath}");
         }
 
         if (string.IsNullOrWhiteSpace(options.Telegram.BotToken))

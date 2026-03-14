@@ -1,12 +1,12 @@
 {
   "Telegram": {
     "ApiBaseUrl": "https://api.telegram.org",
-    "SecretSourcePath": "..\\..\\.secrets\\NovaKrickBot_Telegram.secrets.json",
+    "SecretSourcePath": "..\\..\\.secrets\\telegram.secrets.json",
     "BotToken": "",
     "PollingTimeoutSeconds": 20
   },
   "OpenCode": {
-    "BaseUrl": "http://192.168.0.101:4096/",
+    "BaseUrl": "http://localhost:4096/",
     "Username": "opencode",
     "Password": "",
     "RequestTimeoutSeconds": 300
@@ -25,22 +25,21 @@
   },
   "Chats": [
     {
-      "TelegramChatId": 1700580252,
-      "OpenCodeSessionId": "ses_317f98079ffewZTBZBlX9YR4On",
+      "TelegramChatId": 123456789,
+      "OpenCodeSessionId": "ses_base_example",
       "AllowedUserIds": [],
       "AllowedUsernames": []
     }
   ],
   "Commands": [
     {
-      "Title": "Ping Test",
-      "Session": "ses_317f98079ffewZTBZBlX9YR4On",
+      "Title": "Daily Summary",
+      "Session": "ses_daily_example",
       "Model": "openai/gpt-5.4",
-      "Prompt": "ping",
+      "Prompt": "Create today's summary.",
       "TimeLoop": {
-        "Enabled": true,
-        "Interval": "5m",
-        "LastRun": "2026-03-13T20:31:00"
+        "Enabled": false,
+        "Interval": "5m"
       }
     }
   ]
