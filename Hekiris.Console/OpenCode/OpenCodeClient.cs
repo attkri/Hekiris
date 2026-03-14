@@ -77,13 +77,18 @@ public sealed class OpenCodeClient : IDisposable
                     Text = prompt,
                 },
             ],
-            Agent = string.IsNullOrWhiteSpace(agent) ? null : agent,
         };
 
         using HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"session/{Uri.EscapeDataString(sessionId)}/message", request, SerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
-        PromptResponse? promptResponse = await response.Content.ReadFromJsonAsync<PromptResponse>(SerializerOptions, cancellationToken);
+        string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            return string.Empty;
+        }
+
+        PromptResponse? promptResponse = JsonSerializer.Deserialize<PromptResponse>(responseBody, SerializerOptions);
         if (promptResponse is null)
         {
             throw new OpenCodeException("OpenCode returned no usable response.");

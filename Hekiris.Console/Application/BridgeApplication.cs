@@ -424,7 +424,6 @@ public sealed class BridgeApplication
 
                     ConfiguredCommandOptions configuredCommand = _options.Commands[chatCommand.CommandIndex.Value];
                     string effectiveSessionId = ResolveCommandSessionId(chatBinding, configuredCommand);
-                    string? effectiveAgent = ResolveCommandAgent(chatBinding, configuredCommand);
                     ChatRequest configuredRequest = new(
                         message.Chat.Id,
                         new[] { message.Chat.Id },
@@ -432,7 +431,7 @@ public sealed class BridgeApplication
                         message.From?.Username,
                         configuredCommand.Prompt,
                         effectiveSessionId,
-                        effectiveAgent,
+                        ResolveCommandAgent(chatBinding, configuredCommand),
                         configuredCommand.Title,
                         chatCommand.CommandIndex.Value + 1,
                         false);
@@ -528,7 +527,7 @@ public sealed class BridgeApplication
                 "BRIDGE",
                 outboundConsoleText,
                 isConfiguredCommand
-                    ? $"OpenCode command /c{request.ConfiguredCommandNumber} for chat {request.ChatId} sent to session {request.OpenCodeSessionId} with agent {request.ConfiguredAgent}."
+                    ? $"OpenCode command /c{request.ConfiguredCommandNumber} for chat {request.ChatId} sent to session {request.OpenCodeSessionId}."
                     : $"OpenCode request for chat {request.ChatId} sent to session {request.OpenCodeSessionId}.");
 
             try
@@ -588,6 +587,7 @@ public sealed class BridgeApplication
             builder.AppendLine($"- Hekiris: {(IsStopping ? "stopping" : "running")}");
             builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "reachable" : "unreachable")}");
             builder.AppendLine($"- Base session: {FormatRuntimeState(runtimeStatus.BaseSessionState)}");
+            builder.AppendLine($"- Configured base agent: {FormatConfiguredAgent(_options.Chat.Agent)}");
 
             if (runtimeStatus.ActiveRequest is not null)
             {
@@ -611,13 +611,14 @@ public sealed class BridgeApplication
                     RequestRuntimeState state = runtimeStatus.CommandStates[commandNumber];
                     ConfiguredCommandOptions command = _options.Commands[index];
                     CommandTimeLoopOptions? timeLoop = command.TimeLoop;
+                    string configuredAgent = FormatConfiguredAgent(ResolveCommandAgent(_options.Chat, command));
 
                     string loopStatus = timeLoop?.Enabled == true ? "on" : "off";
                     string interval = string.IsNullOrWhiteSpace(timeLoop?.Interval) ? "-" : timeLoop!.Interval;
                     string lastRun = timeLoop?.LastRun is null ? "-" : timeLoop.LastRun.Value.ToString("yyyy-MM-dd HH:mm:ss");
 
                     builder.AppendLine(
-                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Loop {loopStatus} | Interval {interval} | LastRun {lastRun}");
+                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Agent {configuredAgent} | Loop {loopStatus} | Interval {interval} | LastRun {lastRun}");
                 }
             }
 
@@ -672,6 +673,11 @@ public sealed class BridgeApplication
                 RequestRuntimeState.Queued => "queued",
                 _ => "free",
             };
+        }
+
+        private static string FormatConfiguredAgent(string? agent)
+        {
+            return string.IsNullOrWhiteSpace(agent) ? "session default" : agent;
         }
 
         private async Task SendMessageToRequestTargetsAsync(ChatRequest request, string message, CancellationToken cancellationToken)
@@ -833,13 +839,13 @@ public sealed class BridgeApplication
             {
                 await _openCodeClient.GetHealthAsync(cancellationToken);
                 _openCodeAvailabilityTracker.SetAvailability(true);
-                return "Hekiris started and is ready. (/help)";
+                return $"Hekiris started and is ready. (/help) Base agent: {FormatConfiguredAgent(_options.Chat.Agent)}";
             }
             catch (Exception exception)
             {
                 _openCodeAvailabilityTracker.SetAvailability(false);
                 _console.WriteWarning($"OpenCode server is unreachable at startup: {exception.Message}");
-                return "Hekiris started, but the OpenCode server is currently unreachable. (/help)";
+                return $"Hekiris started, but the OpenCode server is currently unreachable. (/help) Base agent: {FormatConfiguredAgent(_options.Chat.Agent)}";
             }
         }
 

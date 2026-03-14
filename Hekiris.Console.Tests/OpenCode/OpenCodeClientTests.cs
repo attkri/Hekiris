@@ -38,7 +38,7 @@ public sealed class OpenCodeClientTests
     }
 
     [Fact]
-    public async Task SendPromptAsync_SendsConfiguredAgent()
+    public async Task SendPromptAsync_DoesNotSendAgentField()
     {
         StubHttpMessageHandler handler = new(
             _ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -64,7 +64,7 @@ public sealed class OpenCodeClientTests
 
         string body = await handler.Requests.Single().Content!.ReadAsStringAsync();
 
-        Assert.Contains("\"agent\":\"Nova\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"agent\"", body, StringComparison.Ordinal);
     }
 
     [Fact]

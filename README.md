@@ -127,11 +127,11 @@ Example:
 }
 ```
 
-If `Chat.Agent` is set, normal chat messages use that agent for the base session.
+`Chat.Agent` and `Commands[].Agent` can already be configured, but Hekiris does not currently forward the agent field to OpenCode yet.
 
 If `Commands[].Session` is empty, the command falls back to the base chat session.
 
-If `Commands[].Agent` is empty, the command falls back to the chat agent. If neither is set, Hekiris sends no explicit agent and OpenCode uses the session default.
+If `Commands[].Agent` is empty, the command falls back to the chat agent for configuration purposes. At runtime Hekiris currently relies on the session-side OpenCode defaults.
 
 If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatically. `LastRun` is optional in the file and is updated by Hekiris when a scheduled command is queued so failed runs are not retried immediately in a tight loop.
 
