@@ -22,7 +22,7 @@ jobs:
           dotnet-version: "10.x"
 
       - name: Restore dependencies
-        run: dotnet restore Hekiris.slnx
+        run: dotnet restore Hekiris.slnx -r win-x64
 
       - name: Run tests
         run: dotnet test Hekiris.slnx -c Release --no-restore
