@@ -64,7 +64,7 @@ public sealed class OpenCodeClient : IDisposable
     public async Task<string> SendPromptAsync(
         string sessionId,
         string prompt,
-        OpenCodeModelSelection? modelSelection,
+        string? agent,
         CancellationToken cancellationToken)
     {
         PromptRequest request = new()
@@ -77,13 +77,7 @@ public sealed class OpenCodeClient : IDisposable
                     Text = prompt,
                 },
             ],
-            Model = modelSelection is null
-                ? null
-                : new PromptModel
-                {
-                    ProviderId = modelSelection.ProviderId,
-                    ModelId = modelSelection.ModelId,
-                },
+            Agent = string.IsNullOrWhiteSpace(agent) ? null : agent,
         };
 
         using HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"session/{Uri.EscapeDataString(sessionId)}/message", request, SerializerOptions, cancellationToken);
@@ -173,18 +167,9 @@ public sealed class OpenCodeClient : IDisposable
         [JsonPropertyName("parts")]
         public List<PromptPart> Parts { get; set; } = new();
 
-        [JsonPropertyName("model")]
+        [JsonPropertyName("agent")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public PromptModel? Model { get; set; }
-    }
-
-    private sealed class PromptModel
-    {
-        [JsonPropertyName("providerID")]
-        public string ProviderId { get; set; } = string.Empty;
-
-        [JsonPropertyName("modelID")]
-        public string ModelId { get; set; } = string.Empty;
+        public string? Agent { get; set; }
     }
 
     private sealed class PromptPart
@@ -238,22 +223,3 @@ public sealed class OpenCodeException : Exception
     }
 }
 
-public sealed record OpenCodeModelSelection(string ProviderId, string ModelId)
-{
-    public static OpenCodeModelSelection Parse(string configuredModel)
-    {
-        if (string.IsNullOrWhiteSpace(configuredModel))
-        {
-            throw new OpenCodeException("The configured model must not be empty.");
-        }
-
-        string trimmed = configuredModel.Trim();
-        int slashIndex = trimmed.IndexOf('/');
-        if (slashIndex > 0 && slashIndex < trimmed.Length - 1)
-        {
-            return new OpenCodeModelSelection(trimmed[..slashIndex], trimmed[(slashIndex + 1)..]);
-        }
-
-        return new OpenCodeModelSelection("openai", trimmed);
-    }
-}

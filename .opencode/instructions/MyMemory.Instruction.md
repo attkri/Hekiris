@@ -1,6 +1,6 @@
 # My Memory Context
 
-**Stand:** 2026-03-14 00:49
+**Stand:** 2026-03-14 02:28
 
 ## Fortschritt
 
@@ -300,6 +300,20 @@
 
 - `C:\Users\attila\.config\Hekiris\config.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `Hekiris check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
 
+### OpenCode-Sessions nach Repo-Rename auf neuen Projektpfad umgebogen (2026-03-14)
+
+**Problem:**
+
+- Nach dem Repo-Rename auf `Hekiris` zeigten bestehende OpenCode-Sessions noch auf den alten Arbeitsordner `C:/Users/attila/Projects/OpenCodeTelegram`.
+
+**Ursache:**
+
+- OpenCode speichert den Session-Arbeitsordner zusätzlich pro Session in `C:\Users\attila\.local\share\opencode\opencode.db`; der Projektwechsel im Repo allein aktualisiert diese Altpfade nicht rückwirkend.
+
+**Lösung:**
+
+- Die betroffenen Session-Einträge des Projekts `C:/Users/attila/Projects/Hekiris` wurden nach einem DB-Backup per `sqlite3` auf den neuen Pfad `C:/Users/attila/Projects/Hekiris` aktualisiert; das Backup liegt als `C:\Users\attila\.local\share\opencode\opencode.db.20260314-022726.bak` vor. Verifiziert wurde das per `SELECT`, `PRAGMA integrity_check;` und `opencode export ses_317f98079ffewZTBZBlX9YR4On` mit neuem `info.directory`.
+
 ## Nützliche Kommandos (kurz)
 
 - `dotnet test Hekiris.slnx`: Build und xUnit-Tests ausführen.
@@ -307,6 +321,8 @@
 - `dotnet run --project Hekiris.Console -- check`: Konfiguration, Telegram, OpenCode und Sessions prüfen.
 
 - `dotnet run --project Hekiris.Console -- start`: Bridge starten.
+
+- `sqlite3 C:/Users/attila/.local/share/opencode/opencode.db ...`: OpenCode-Session-Metadaten bei Repo-Renames gezielt prüfen oder migrieren.
 
 - `C:\Users\attila\.logs\Hekiris\YYYY-MM-DD-Hekiris.csv`: Tageslog der Bridge.
 

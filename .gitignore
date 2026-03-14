@@ -1,15 +1,8 @@
-!.opencode/commands/
-!.opencode/commands/*.md
-!Template/**
 .context/**
 .git/**
 .History/**
 .logs/**
 .opencode/**
-!.opencode/instructions/
-!.opencode/instructions/*.md
-!.opencode/scripts/
-!.opencode/scripts/*.ps1
 .tasks/**
 .tmp/**
 .Tools/**
@@ -28,3 +21,4 @@ nul
 publish-out/**
 TestResults/**
 tmp/**
+**/MyMemory.Instruction.md

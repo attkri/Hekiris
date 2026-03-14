@@ -33,12 +33,10 @@ public sealed class AppConfigurationLoaderTests
                     "TelegramRetryDelaySeconds": 1,
                     "OpenCodeHealthCheckIntervalSeconds": 30
                   },
-                  "Chats": [
-                    {
-                      "TelegramChatId": 1,
-                      "OpenCodeSessionId": "ses_test"
-                    }
-                  ]
+                  "Chat": {
+                    "TelegramChatId": 1,
+                    "OpenCodeSessionId": "ses_test"
+                  }
                 }
                 """);
 

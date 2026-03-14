@@ -10,7 +10,7 @@ public sealed class BridgeOptions
 
     public RuntimeOptions Runtime { get; set; } = new();
 
-    public List<ChatBindingOptions> Chats { get; set; } = new();
+    public ChatBindingOptions Chat { get; set; } = new();
 
     public List<ConfiguredCommandOptions> Commands { get; set; } = new();
 }
@@ -65,6 +65,8 @@ public sealed class ChatBindingOptions
 
     public string OpenCodeSessionId { get; set; } = string.Empty;
 
+    public string Agent { get; set; } = string.Empty;
+
     public List<long> AllowedUserIds { get; set; } = new();
 
     public List<string> AllowedUsernames { get; set; } = new();
@@ -76,7 +78,7 @@ public sealed class ConfiguredCommandOptions
 
     public string Session { get; set; } = string.Empty;
 
-    public string Model { get; set; } = string.Empty;
+    public string Agent { get; set; } = string.Empty;
 
     public string Prompt { get; set; } = string.Empty;
 

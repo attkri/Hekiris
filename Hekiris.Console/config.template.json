@@ -23,19 +23,18 @@
     "RejectMessagesWhenStopping": true,
     "SkipPendingUpdatesOnStart": true
   },
-  "Chats": [
-    {
-      "TelegramChatId": 123456789,
-      "OpenCodeSessionId": "ses_base_example",
-      "AllowedUserIds": [],
-      "AllowedUsernames": []
-    }
-  ],
+  "Chat": {
+    "TelegramChatId": 123456789,
+    "OpenCodeSessionId": "ses_base_example",
+    "Agent": "Nova",
+    "AllowedUserIds": [],
+    "AllowedUsernames": []
+  },
   "Commands": [
     {
       "Title": "Daily Summary",
-      "Session": "ses_daily_example",
-      "Model": "openai/gpt-5.4",
+      "Session": "",
+      "Agent": "",
       "Prompt": "Create today's summary.",
       "TimeLoop": {
         "Enabled": false,

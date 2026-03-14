@@ -133,8 +133,7 @@ public sealed class BridgeApplication
             _console.WriteError($"OpenCode health check failed: {exception.Message}");
         }
 
-        IEnumerable<string> sessionIds = options.Chats
-            .Select(binding => binding.OpenCodeSessionId)
+        IEnumerable<string> sessionIds = new[] { options.Chat.OpenCodeSessionId }
             .Concat(options.Commands.Select(command => command.Session))
             .Where(sessionId => !string.IsNullOrWhiteSpace(sessionId))
             .Distinct(StringComparer.Ordinal);
@@ -362,8 +361,8 @@ public sealed class BridgeApplication
                 return;
             }
 
-            ChatBindingOptions? chatBinding = _options.Chats.FirstOrDefault(item => item.TelegramChatId == message.Chat.Id);
-            if (chatBinding is null)
+            ChatBindingOptions chatBinding = _options.Chat;
+            if (chatBinding.TelegramChatId != message.Chat.Id)
             {
                 _console.WriteInfo($"Chat {message.Chat.Id} is not allowed and will be ignored.");
                 return;
@@ -424,14 +423,16 @@ public sealed class BridgeApplication
                     }
 
                     ConfiguredCommandOptions configuredCommand = _options.Commands[chatCommand.CommandIndex.Value];
+                    string effectiveSessionId = ResolveCommandSessionId(chatBinding, configuredCommand);
+                    string? effectiveAgent = ResolveCommandAgent(chatBinding, configuredCommand);
                     ChatRequest configuredRequest = new(
                         message.Chat.Id,
                         new[] { message.Chat.Id },
                         message.From?.Id,
                         message.From?.Username,
                         configuredCommand.Prompt,
-                        configuredCommand.Session,
-                        configuredCommand.Model,
+                        effectiveSessionId,
+                        effectiveAgent,
                         configuredCommand.Title,
                         chatCommand.CommandIndex.Value + 1,
                         false);
@@ -452,7 +453,7 @@ public sealed class BridgeApplication
                 message.From?.Username,
                 incomingText,
                 chatBinding.OpenCodeSessionId,
-                null,
+                string.IsNullOrWhiteSpace(chatBinding.Agent) ? null : chatBinding.Agent,
                 null,
                 null,
                 false);
@@ -527,16 +528,12 @@ public sealed class BridgeApplication
                 "BRIDGE",
                 outboundConsoleText,
                 isConfiguredCommand
-                    ? $"OpenCode command /c{request.ConfiguredCommandNumber} for chat {request.ChatId} sent to session {request.OpenCodeSessionId} with model {request.ConfiguredModel}."
+                    ? $"OpenCode command /c{request.ConfiguredCommandNumber} for chat {request.ChatId} sent to session {request.OpenCodeSessionId} with agent {request.ConfiguredAgent}."
                     : $"OpenCode request for chat {request.ChatId} sent to session {request.OpenCodeSessionId}.");
 
             try
             {
-                OpenCodeModelSelection? modelSelection = string.IsNullOrWhiteSpace(request.ConfiguredModel)
-                    ? null
-                    : OpenCodeModelSelection.Parse(request.ConfiguredModel);
-
-                string response = await _openCodeClient.SendPromptAsync(request.OpenCodeSessionId, request.Text, modelSelection, cancellationToken);
+                string response = await _openCodeClient.SendPromptAsync(request.OpenCodeSessionId, request.Text, request.ConfiguredAgent, cancellationToken);
                 await _openCodeAvailabilityTracker.ReportAvailableAsync(CancellationToken.None);
 
                 if (string.IsNullOrWhiteSpace(response))
@@ -650,6 +647,23 @@ public sealed class BridgeApplication
             return builder.ToString().TrimEnd();
         }
 
+        private static string ResolveCommandSessionId(ChatBindingOptions chatBinding, ConfiguredCommandOptions command)
+        {
+            return string.IsNullOrWhiteSpace(command.Session)
+                ? chatBinding.OpenCodeSessionId
+                : command.Session;
+        }
+
+        private static string? ResolveCommandAgent(ChatBindingOptions chatBinding, ConfiguredCommandOptions command)
+        {
+            if (!string.IsNullOrWhiteSpace(command.Agent))
+            {
+                return command.Agent;
+            }
+
+            return string.IsNullOrWhiteSpace(chatBinding.Agent) ? null : chatBinding.Agent;
+        }
+
         private static string FormatRuntimeState(RequestRuntimeState state)
         {
             return state switch
@@ -700,11 +714,13 @@ public sealed class BridgeApplication
 
             try
             {
-                long[] targetChatIds = _options.Chats.Select(chat => chat.TelegramChatId).Distinct().ToArray();
+                long[] targetChatIds = [_options.Chat.TelegramChatId];
                 if (targetChatIds.Length == 0)
                 {
                     return;
                 }
+
+                ChatBindingOptions defaultChatBinding = _options.Chat;
 
                 for (int index = 0; index < _options.Commands.Count; index++)
                 {
@@ -722,8 +738,8 @@ public sealed class BridgeApplication
                         null,
                         "scheduler",
                         command.Prompt,
-                        command.Session,
-                        command.Model,
+                        ResolveCommandSessionId(defaultChatBinding, command),
+                        ResolveCommandAgent(defaultChatBinding, command),
                         command.Title,
                         index + 1,
                         true);
@@ -829,7 +845,7 @@ public sealed class BridgeApplication
 
         private async Task SendBridgeStatusNotificationAsync(string message, CancellationToken cancellationToken)
         {
-            foreach (long chatId in _options.Chats.Select(chat => chat.TelegramChatId).Distinct())
+            foreach (long chatId in new[] { _options.Chat.TelegramChatId }.Distinct())
             {
                 try
                 {

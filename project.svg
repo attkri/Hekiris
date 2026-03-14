@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+   <style>
+      .bg {
+         fill: #2668aa;
+      }
+
+      .txt {
+         fill: #ffb909;
+         font-family: "Segoe UI", sans-serif;
+         font-weight: 900;
+         text-anchor: middle;
+         text-align: center;
+         /* optional: dominant-baseline: middle; */
+      }
+   </style>
+
+   <rect class="bg" width="128" height="128" />
+
+   <g id="g_1Zeile_1Zeichen" style="font-size:150px" visibility="hidden">
+      <text class="txt" x="60" y="118">K</text>
+   </g>
+
+   <g id="g_1Zeile_2Zeichen" style="font-size:90px" visibility="hidden">
+      <text class="txt" x="64" y="100">OC</text>
+   </g>
+
+   <g id="g_2Zeilen_2Zeichen" visibility="visible">
+      <text class="txt" x="65" y="77" style="font-size:120px">OC</text>
+      <text class="txt" x="65" y="130" style="font-size:62px">TELE</text>
+   </g>
+
+   <g id="g_3Zeilen_3Zeichen" style="font-size:45px" visibility="hidden">
+      <text class="txt" x="64" y="43">A</text>
+      <text class="txt" x="64" y="81">C</text>
+      <text class="txt" x="64" y="118">W</text>
+   </g>
+
+   <g id="g_3Zeilen_6Zeichen" style="font-size:40px" visibility="hidden">
+      <text class="txt" x="64" y="41">xxxx</text>
+      <text class="txt" x="64" y="76">xxxx</text>
+      <text class="txt" x="64" y="111">xxxx</text>
+   </g>
+</svg>

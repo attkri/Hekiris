@@ -75,7 +75,7 @@ It keeps one base OpenCode session per Telegram chat, supports dedicated command
 
 Hekiris always loads its runtime config from `%USERPROFILE%\.config\Hekiris\config.json`.
 
-The JSON format uses PascalCase keys such as `Telegram`, `OpenCode`, `AccessControl`, `Chats`, `Commands`, and `TimeLoop`.
+The JSON format uses PascalCase keys such as `Telegram`, `OpenCode`, `AccessControl`, `Chat`, `Commands`, and `TimeLoop`.
 
 `Telegram.SecretSourcePath` may be relative to the fixed config file location. The template uses `..\..\.secrets\telegram.secrets.json`.
 
@@ -89,9 +89,9 @@ Important sections:
 
 - `Runtime` - queue sizes, polling behavior, health checks, and shutdown behavior
 
-- `Chats` - base session mapping `TelegramChatId -> OpenCodeSessionId`
+- `Chat` - the single base chat binding with `TelegramChatId`, `OpenCodeSessionId`, and an optional default `Agent`
 
-- `Commands` - predefined command presets with `Title`, `Session`, `Model`, `Prompt`, and optional `TimeLoop`
+- `Commands` - predefined command presets with `Title`, optional `Session`, optional `Agent`, `Prompt`, and optional `TimeLoop`
 
 Example:
 
@@ -107,17 +107,16 @@ Example:
     "AllowedUserIds": [123456789],
     "AllowedUsernames": ["example_user"]
   },
-  "Chats": [
-    {
-      "TelegramChatId": 123456789,
-      "OpenCodeSessionId": "ses_base_example"
-    }
-  ],
+  "Chat": {
+    "TelegramChatId": 123456789,
+    "OpenCodeSessionId": "ses_base_example",
+    "Agent": "Nova"
+  },
   "Commands": [
     {
       "Title": "Daily Summary",
-      "Session": "ses_daily_example",
-      "Model": "openai/gpt-5.4",
+      "Session": "",
+      "Agent": "",
       "Prompt": "Create today\'s summary.",
       "TimeLoop": {
         "Enabled": false,
@@ -128,7 +127,11 @@ Example:
 }
 ```
 
-If `Model` does not contain a provider prefix, Hekiris defaults to `openai`.
+If `Chat.Agent` is set, normal chat messages use that agent for the base session.
+
+If `Commands[].Session` is empty, the command falls back to the base chat session.
+
+If `Commands[].Agent` is empty, the command falls back to the chat agent. If neither is set, Hekiris sends no explicit agent and OpenCode uses the session default.
 
 If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatically. `LastRun` is optional in the file and is updated by Hekiris when a scheduled command is queued so failed runs are not retried immediately in a tight loop.
 
@@ -136,9 +139,9 @@ If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatical
 
 - Set valid Telegram allowlists in `AccessControl.AllowedUserIds` and `AccessControl.AllowedUsernames`
 
-- Fill `Chats[]` with the Telegram chat ID and its base OpenCode session ID
+- Fill `Chat` with the Telegram chat ID, its base OpenCode session ID, and optionally a default agent
 
-- Add any optional `Commands[]` entries you want to run from chat or on a schedule
+- Add any optional `Commands[]` entries you want to run from chat or on a schedule; leave `Session` empty to reuse the base chat session
 
 - Make sure each referenced OpenCode session already exists
 

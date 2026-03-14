@@ -20,7 +20,7 @@ public sealed class CommandTimeLoopSchedulerTests
         {
             Title = "Ping",
             Session = "ses_test",
-            Model = "openai/gpt-5.4",
+            Agent = "Nova",
             Prompt = "ping",
             TimeLoop = new CommandTimeLoopOptions
             {

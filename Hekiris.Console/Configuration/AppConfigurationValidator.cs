@@ -55,41 +55,30 @@ public sealed class AppConfigurationValidator
             result.Add("Runtime.OpenCodeHealthCheckIntervalSeconds must be greater than 0.");
         }
 
-        if (options.Chats.Count == 0)
+        ChatBindingOptions binding = options.Chat;
+        if (binding is null)
         {
-            result.Add("At least one entry in Chats is required.");
+            result.Add("Chat configuration is required.");
+            return result;
         }
 
-        IEnumerable<long> duplicateChatIds = options.Chats
-            .GroupBy(item => item.TelegramChatId)
-            .Where(group => group.Key != 0 && group.Count() > 1)
-            .Select(group => group.Key);
-
-        foreach (long chatId in duplicateChatIds)
+        if (binding.TelegramChatId == 0)
         {
-            result.Add($"TelegramChatId is configured more than once: {chatId}");
+            result.Add("Chat.TelegramChatId must not be 0.");
         }
 
-        foreach (ChatBindingOptions binding in options.Chats)
+        if (string.IsNullOrWhiteSpace(binding.OpenCodeSessionId))
         {
-            if (binding.TelegramChatId == 0)
-            {
-                result.Add("Chats[].TelegramChatId must not be 0.");
-            }
+            result.Add($"OpenCodeSessionId is missing for chat {binding.TelegramChatId}.");
+        }
+        else if (!binding.OpenCodeSessionId.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
+        {
+            result.Add($"OpenCodeSessionId for chat {binding.TelegramChatId} must start with 'ses'.");
+        }
 
-            if (string.IsNullOrWhiteSpace(binding.OpenCodeSessionId))
-            {
-                result.Add($"OpenCodeSessionId is missing for chat {binding.TelegramChatId}.");
-            }
-            else if (!binding.OpenCodeSessionId.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
-            {
-                result.Add($"OpenCodeSessionId for chat {binding.TelegramChatId} must start with 'ses'.");
-            }
-
-            if (binding.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
-            {
-                result.Add($"Chats[{binding.TelegramChatId}].AllowedUsernames must not contain empty values.");
-            }
+        if (binding.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
+        {
+            result.Add($"Chat.AllowedUsernames must not contain empty values.");
         }
 
         if (options.AccessControl.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
@@ -107,18 +96,10 @@ public sealed class AppConfigurationValidator
                 result.Add($"Commands[{displayIndex}].Title must not be empty.");
             }
 
-            if (string.IsNullOrWhiteSpace(command.Session))
-            {
-                result.Add($"Commands[{displayIndex}].Session must not be empty.");
-            }
-            else if (!command.Session.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(command.Session)
+                && !command.Session.StartsWith("ses", StringComparison.OrdinalIgnoreCase))
             {
                 result.Add($"Commands[{displayIndex}].Session must start with 'ses'.");
-            }
-
-            if (string.IsNullOrWhiteSpace(command.Model))
-            {
-                result.Add($"Commands[{displayIndex}].Model must not be empty.");
             }
 
             if (string.IsNullOrWhiteSpace(command.Prompt))

@@ -251,7 +251,7 @@ public sealed record ChatRequest(
     string? Username,
     string Text,
     string OpenCodeSessionId,
-    string? ConfiguredModel,
+    string? ConfiguredAgent,
     string? ConfiguredCommandTitle,
     int? ConfiguredCommandNumber,
     bool IsAutomatic = false);

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using Hekiris.OpenCode;
 
 namespace Hekiris.Tests.OpenCode;
@@ -39,7 +38,7 @@ public sealed class OpenCodeClientTests
     }
 
     [Fact]
-    public async Task SendPromptAsync_SendsConfiguredModel()
+    public async Task SendPromptAsync_SendsConfiguredAgent()
     {
         StubHttpMessageHandler handler = new(
             _ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -61,13 +60,11 @@ public sealed class OpenCodeClientTests
 
         using OpenCodeClient client = new(httpClient);
 
-        await client.SendPromptAsync("ses_test", "Ping", OpenCodeModelSelection.Parse("openai/gpt-4.1"), CancellationToken.None);
+        await client.SendPromptAsync("ses_test", "Ping", "Nova", CancellationToken.None);
 
         string body = await handler.Requests.Single().Content!.ReadAsStringAsync();
-        using JsonDocument document = JsonDocument.Parse(body);
 
-        Assert.Equal("openai", document.RootElement.GetProperty("model").GetProperty("providerID").GetString());
-        Assert.Equal("gpt-4.1", document.RootElement.GetProperty("model").GetProperty("modelID").GetString());
+        Assert.Contains("\"agent\":\"Nova\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -111,15 +108,6 @@ public sealed class OpenCodeClientTests
         using OpenCodeClient client = new(httpClient);
 
         await Assert.ThrowsAsync<OpenCodeException>(() => client.GetHealthAsync(CancellationToken.None));
-    }
-
-    [Fact]
-    public void Parse_DefaultsToOpenAiProvider()
-    {
-        OpenCodeModelSelection selection = OpenCodeModelSelection.Parse("gpt-4");
-
-        Assert.Equal("openai", selection.ProviderId);
-        Assert.Equal("gpt-4", selection.ModelId);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler

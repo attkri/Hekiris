@@ -103,20 +103,7 @@ public sealed class AppConfigurationLoader
     private static void NormalizeAccessControlCollections(JsonObject root)
     {
         NormalizeAllowedValuesOnObject(GetObject(root, "accessControl", "AccessControl"));
-
-        JsonArray? chats = GetArray(root, "chats", "Chats");
-        if (chats is null)
-        {
-            return;
-        }
-
-        foreach (JsonNode? node in chats)
-        {
-            if (node is JsonObject chatObject)
-            {
-                NormalizeAllowedValuesOnObject(chatObject);
-            }
-        }
+        NormalizeAllowedValuesOnObject(GetObject(root, "chat", "Chat"));
     }
 
     private static void NormalizeAllowedValuesOnObject(JsonObject? jsonObject)
@@ -181,16 +168,4 @@ public sealed class AppConfigurationLoader
         return null;
     }
 
-    private static JsonArray? GetArray(JsonObject root, params string[] candidateNames)
-    {
-        foreach (string candidateName in candidateNames)
-        {
-            if (root[candidateName] is JsonArray jsonArray)
-            {
-                return jsonArray;
-            }
-        }
-
-        return null;
-    }
 }

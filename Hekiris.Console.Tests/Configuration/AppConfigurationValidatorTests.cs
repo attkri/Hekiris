@@ -31,17 +31,13 @@ public sealed class AppConfigurationValidatorTests
             {
                 AllowedUsernames = [""]
             },
-            Chats =
-            [
-                new ChatBindingOptions { TelegramChatId = 0, OpenCodeSessionId = "", AllowedUsernames = [""] },
-            ],
+            Chat = new ChatBindingOptions { TelegramChatId = 0, OpenCodeSessionId = "", AllowedUsernames = [""] },
             Commands =
             [
                 new ConfiguredCommandOptions
                 {
                     Title = "",
                     Session = "abc",
-                    Model = "",
                     Prompt = "",
                     TimeLoop = new CommandTimeLoopOptions
                     {
@@ -62,24 +58,11 @@ public sealed class AppConfigurationValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeHealthCheckIntervalSeconds", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("OpenCodeSessionId", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("AccessControl.AllowedUsernames", StringComparison.Ordinal));
-        Assert.Contains(result.Errors, error => error.Contains("AllowedUsernames", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Chat.AllowedUsernames", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Title", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Session", StringComparison.Ordinal));
-        Assert.Contains(result.Errors, error => error.Contains("Commands[1].Model", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Prompt", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("TimeLoop.Interval", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Validate_ReturnsError_ForDuplicateChatIds()
-    {
-        BridgeOptions options = CreateValidOptions();
-        options.Chats.Add(new ChatBindingOptions { TelegramChatId = 1, OpenCodeSessionId = "ses_other" });
-
-        ConfigurationValidationResult result = new AppConfigurationValidator().Validate(options);
-
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.Contains("more than once", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -139,10 +122,7 @@ public sealed class AppConfigurationValidatorTests
                 TelegramRetryDelaySeconds = 1,
                 OpenCodeHealthCheckIntervalSeconds = 30,
             },
-            Chats =
-            [
-                new ChatBindingOptions { TelegramChatId = 1, OpenCodeSessionId = "ses_valid" },
-            ],
+            Chat = new ChatBindingOptions { TelegramChatId = 1, OpenCodeSessionId = "ses_valid" },
         };
     }
 }
