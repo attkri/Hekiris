@@ -1,12 +1,12 @@
 # My Memory Context
 
-**Stand:** 2026-03-13 20:56
+**Stand:** 2026-03-14 00:49
 
 ## Fortschritt
 
 **Aktueller Stand laufender Aufgaben:**
 
-- Der Kick-off für `TelegramOpenCodeBridge` ist als erste lauffähige .NET-10-Console-App mit xUnit-Testprojekt umgesetzt.
+- Der Kick-off für `Hekiris` ist als erste lauffähige .NET-10-Console-App mit xUnit-Testprojekt umgesetzt.
 
 **Risiken:**
 
@@ -16,7 +16,7 @@
 
 - Der Start-/Stop- und Offline-Monitor ist per Code umgesetzt, aber ein echtes langlaufendes Telegram-Ende-zu-Ende wurde in dieser Session nicht manuell beobachtet.
 
-- Die produktive Konfiguration liegt jetzt außerhalb des Repos unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`; Repo-Änderungen an `config.template.json` wirken erst nach Übernahme in diese Datei.
+- Die produktive Konfiguration liegt jetzt außerhalb des Repos unter `C:\Users\attila\.config\Hekiris\config.json`; Repo-Änderungen an `config.template.json` wirken erst nach Übernahme in diese Datei.
 
 - Der Chat unterstützt jetzt neben `/cN` auch `/cNs` zum gezielten Stop eines laufenden konfigurierten Kommandos; `/ss` zeigt kompakte Laufzeitstates statt der Konfiguration.
 
@@ -26,19 +26,39 @@
 
 **Nächste Schritte:**
 
-- [X] `OpenCodeSessionId` in `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` auf die bestehende Session `ses_317f98079ffewZTBZBlX9YR4On` setzen.
+- [X] `OpenCodeSessionId` in `C:\Users\attila\.config\Hekiris\config.json` auf die bestehende Session `ses_317f98079ffewZTBZBlX9YR4On` setzen.
 
-- [X] `tocb check` erneut ausführen.
+- [X] `Hekiris check` erneut ausführen.
 
 - [X] Einen direkten OpenCode-Ping mit der Session `ses_317f98079ffewZTBZBlX9YR4On` gegen die API verifizieren.
 
-- [ ] Optional `tocb start` mit Telegram-Ende-zu-Ende testen.
+- [ ] Optional `Hekiris start` mit Telegram-Ende-zu-Ende testen.
 
 - [ ] Optional das Offline-/Recovery-Verhalten gegen einen bewusst gestoppten OpenCode-Server manuell beobachten.
 
 - [ ] Optional die automatische `timeLoop`-Ausführung über mehrere Intervalle im echten Telegram-Betrieb beobachten.
 
 ## Entscheidungen
+
+### Öffentliche Naming-Richtung weg von `Bridge` und `Telegram` (2026-03-14)
+
+**Entscheidung:**
+
+- Die öffentliche Produktbenennung soll nicht die interne Bridge-Technik oder den Drittkanal `Telegram` betonen, sondern den Nutzen als externe Mensch-Schnittstelle für OpenCode über etablierte Kanäle plus Scheduler- und Schnellkommando-Funktionen; als aktuell bevorzugter Kandidat wurde `Hekiris` gewählt.
+
+**Begründung:**
+
+- Der User hat klargestellt, dass `Bridge` nur ein technisches Element ist und der eigentliche Mehrwert in der Nutzung bestehender Drittkanäle, Intervall-Prompts und hinterlegten Schnellkommandos liegt; zusätzlich ist `Telegram` im öffentlichen Produktnamen marken- und term-seitig unattraktiv.
+
+**Konsequenz:**
+
+- Künftige Naming-, Branding- und Rename-Vorschläge sollen kanaloffen, produktnutzennah und mythologisch-komponiert gedacht werden; `Hekiris` ist aktuell der Favorit und muss vor finaler Festlegung nur noch gegen Register, Handles und Kernmarkt-Domains vertieft geprüft werden.
+
+- Eine erste vertiefte Vorprüfung ergab für `Hekiris` aktuell keine exakten Treffer in USPTO, TMview und WIPO sowie keine sichtbaren Repo-, Domain- oder Paketkollisionen; als Restvorsicht bleibt ein ähnlicher Teiltreffer `HEKIRISTONS` in TMview/USPTO außerhalb des geplanten Produktkontexts.
+
+**Verworfen:**
+
+- Eine öffentliche Hauptmarke mit Fokus auf `Telegram`, `Bridge`, `Relay` oder rein transporttechnischer Semantik.
 
 ### Externe Telegram-Secrets zur Laufzeit laden (2026-03-13)
 
@@ -52,7 +72,7 @@
 
 **Konsequenz:**
 
-- `tocb config show` maskiert `BotToken` und `OpenCode.Password`; die produktive Datei `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` enthält keinen Klartext-Token, sondern nur den Pfad zur Secret-Datei.
+- `Hekiris config show` maskiert `BotToken` und `OpenCode.Password`; die produktive Datei `C:\Users\attila\.config\Hekiris\config.json` enthält keinen Klartext-Token, sondern nur den Pfad zur Secret-Datei.
 
 **Verworfen:**
 
@@ -70,7 +90,7 @@
 
 **Konsequenz:**
 
-- Die Logik liegt in `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs` und wird durch xUnit-Tests abgesichert.
+- Die Logik liegt in `Hekiris.Console/Processing/ChatRequestQueue.cs` und wird durch xUnit-Tests abgesichert.
 
 **Verworfen:**
 
@@ -80,7 +100,7 @@
 
 **Entscheidung:**
 
-- Die Lösung ist als `TelegramOpenCodeBridge.slnx` mit `TelegramOpenCodeBridge.Console` und `TelegramOpenCodeBridge.Console.Tests` direkt im Repo-Root aufgebaut.
+- Die Lösung ist als `Hekiris.slnx` mit `Hekiris.Console` und `Hekiris.Console.Tests` direkt im Repo-Root aufgebaut.
 
 **Begründung:**
 
@@ -88,7 +108,7 @@
 
 **Konsequenz:**
 
-- Gemeinsame Versionen stehen in `Directory.Build.props`, die EXE heißt `tocb`, und `README.md` dokumentiert Setup und Nutzung.
+- Gemeinsame Versionen stehen in `Directory.Build.props`, die EXE heißt `Hekiris`, und `README.md` dokumentiert Setup und Nutzung.
 
 **Verworfen:**
 
@@ -106,7 +126,7 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/Application/OpenCodeAvailabilityTracker.cs` steuert Zustandswechsel, und `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs` schreibt `yyyy-MM-dd-OCBridge.csv` mit maximal 10 Tagen Aufbewahrung.
+- `Hekiris.Console/Application/OpenCodeAvailabilityTracker.cs` steuert Zustandswechsel, und `Hekiris.Console/ConsoleOutput/CsvBridgeLogger.cs` schreibt `yyyy-MM-dd-Hekiris.csv` mit maximal 10 Tagen Aufbewahrung.
 
 - Die CSV-Rotation orientiert sich am Tagesdatum im Dateinamen und löscht Logs, die älter als 10 Kalendertage sind.
 
@@ -118,7 +138,7 @@
 
 **Entscheidung:**
 
-- Die produktive Konfiguration liegt fest unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`, und die CSV-Logs liegen fest unter `C:\Users\attila\.logs\TelegramOpenCodeBridge\`.
+- Die produktive Konfiguration liegt fest unter `C:\Users\attila\.config\Hekiris\config.json`, und die CSV-Logs liegen fest unter `C:\Users\attila\.logs\Hekiris\`.
 
 **Begründung:**
 
@@ -126,11 +146,11 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/Configuration/BridgePaths.cs` liefert die festen Zielpfade, `AppConfigurationLoader` lädt nur noch die feste Config-Datei, und `config.template.json` dient im Repo nur noch als Vorlage.
+- `Hekiris.Console/Configuration/BridgePaths.cs` liefert die festen Zielpfade, `AppConfigurationLoader` lädt nur noch die feste Config-Datei, und `config.template.json` dient im Repo nur noch als Vorlage.
 
 **Verworfen:**
 
-- Eine Konfiguration im EXE-Ordner oder Logs neben `tocb.exe`.
+- Eine Konfiguration im EXE-Ordner oder Logs neben `Hekiris.exe`.
 
 ### Chat-Kommandos aus Konfigurationssatz (2026-03-13)
 
@@ -144,7 +164,7 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/Application/BridgeChatCommandParser.cs` parst die Befehle, und `OpenCodeClient` kann pro Kommando ein Modell senden; fehlt ein Provider im Modellstring, wird `openai` angenommen.
+- `Hekiris.Console/Application/BridgeChatCommandParser.cs` parst die Befehle, und `OpenCodeClient` kann pro Kommando ein Modell senden; fehlt ein Provider im Modellstring, wird `openai` angenommen.
 
 **Verworfen:**
 
@@ -162,7 +182,7 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs` verwaltet jetzt Pending-/Running-Status je Grund-Session und Kommando; Antworten aus Command-Sessions werden in Telegram mit `/cN <Titel>` gekennzeichnet.
+- `Hekiris.Console/Processing/ChatRequestQueue.cs` verwaltet jetzt Pending-/Running-Status je Grund-Session und Kommando; Antworten aus Command-Sessions werden in Telegram mit `/cN <Titel>` gekennzeichnet.
 
 **Verworfen:**
 
@@ -172,7 +192,7 @@
 
 **Entscheidung:**
 
-- Die feste Konfiguration unter `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` wird konsequent in `camelCase` geführt, und `commands[].timeLoop` steuert optionale automatische Command-Läufe mit persistiertem `lastRun`.
+- Die feste Konfiguration unter `C:\Users\attila\.config\Hekiris\config.json` wird konsequent in `camelCase` geführt, und `commands[].timeLoop` steuert optionale automatische Command-Läufe mit persistiertem `lastRun`.
 
 **Begründung:**
 
@@ -180,7 +200,7 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/config.template.json` ist auf `camelCase` umgestellt; `TelegramOpenCodeBridge.Console/Application/CommandTimeLoopScheduler.cs` bewertet Fälligkeit, `TelegramOpenCodeBridge.Console/Configuration/CommandTimeLoopStateStore.cs` persistiert `lastRun`, und `BridgeApplication` plant fällige Commands bei Start, nach Wiederverbindung und zyklisch ein.
+- `Hekiris.Console/config.template.json` ist auf `camelCase` umgestellt; `Hekiris.Console/Application/CommandTimeLoopScheduler.cs` bewertet Fälligkeit, `Hekiris.Console/Configuration/CommandTimeLoopStateStore.cs` persistiert `lastRun`, und `BridgeApplication` plant fällige Commands bei Start, nach Wiederverbindung und zyklisch ein.
 
 **Verworfen:**
 
@@ -198,7 +218,7 @@
 
 **Konsequenz:**
 
-- `TelegramOpenCodeBridge.Console/Application/BridgeApplication.cs` ergänzt die Statusausgabe um `Loop an/aus`, `Intervall` und `LastRun`; außerdem wird die Beenden-Meldung jetzt vor dem Cancel ausgelöst.
+- `Hekiris.Console/Application/BridgeApplication.cs` ergänzt die Statusausgabe um `Loop an/aus`, `Intervall` und `LastRun`; außerdem wird die Beenden-Meldung jetzt vor dem Cancel ausgelöst.
 
 **Verworfen:**
 
@@ -256,7 +276,7 @@
 
 **Problem:**
 
-- `tocb check` scheiterte zuerst mit `The 'bot8234111616' scheme is not supported.`
+- `Hekiris check` scheiterte zuerst mit `The 'bot8234111616' scheme is not supported.`
 
 **Ursache:**
 
@@ -264,13 +284,13 @@
 
 **Lösung:**
 
-- Telegram-Methodenpfade beginnen jetzt mit `/bot<TOKEN>/...`, und ein Test in `TelegramOpenCodeBridge.Console.Tests/Telegram/TelegramBotClientTests.cs` sichert dieses Verhalten ab.
+- Telegram-Methodenpfade beginnen jetzt mit `/bot<TOKEN>/...`, und ein Test in `Hekiris.Console.Tests/Telegram/TelegramBotClientTests.cs` sichert dieses Verhalten ab.
 
 ### Echte OpenCode-Session für den Hauptchat gesetzt (2026-03-13)
 
 **Problem:**
 
-- Die erste Konfiguration enthielt nur den Platzhalter `ses_REPLACE_ME`, dadurch blieb `tocb check` rot.
+- Die erste Konfiguration enthielt nur den Platzhalter `ses_REPLACE_ME`, dadurch blieb `Hekiris check` rot.
 
 **Ursache:**
 
@@ -278,19 +298,19 @@
 
 **Lösung:**
 
-- `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `tocb check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
+- `C:\Users\attila\.config\Hekiris\config.json` verwendet jetzt die Session `ses_317f98079ffewZTBZBlX9YR4On`; `Hekiris check` ist damit grün, und ein direkter API-Ping mit `ping` wurde erfolgreich gegen diese Session verifiziert.
 
 ## Nützliche Kommandos (kurz)
 
-- `dotnet test TelegramOpenCodeBridge.slnx`: Build und xUnit-Tests ausführen.
+- `dotnet test Hekiris.slnx`: Build und xUnit-Tests ausführen.
 
-- `dotnet run --project TelegramOpenCodeBridge.Console -- check`: Konfiguration, Telegram, OpenCode und Sessions prüfen.
+- `dotnet run --project Hekiris.Console -- check`: Konfiguration, Telegram, OpenCode und Sessions prüfen.
 
-- `dotnet run --project TelegramOpenCodeBridge.Console -- start`: Bridge starten.
+- `dotnet run --project Hekiris.Console -- start`: Bridge starten.
 
-- `C:\Users\attila\.logs\TelegramOpenCodeBridge\YYYY-MM-DD-OCBridge.csv`: Tageslog der Bridge.
+- `C:\Users\attila\.logs\Hekiris\YYYY-MM-DD-Hekiris.csv`: Tageslog der Bridge.
 
-- `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`: feste Runtime-Konfiguration inkl. `commands[].timeLoop`.
+- `C:\Users\attila\.config\Hekiris\config.json`: feste Runtime-Konfiguration inkl. `commands[].timeLoop`.
 
 ## Context
 
@@ -304,24 +324,24 @@
 
 ## Referenzen
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Application/BridgeApplication.cs`
+- **Dateien:** `Hekiris.Console/Application/BridgeApplication.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Processing/ChatRequestQueue.cs`
+- **Dateien:** `Hekiris.Console/Processing/ChatRequestQueue.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/config.template.json`
+- **Dateien:** `Hekiris.Console/config.template.json`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Application/BridgeChatCommandParser.cs`
+- **Dateien:** `Hekiris.Console/Application/BridgeChatCommandParser.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/ConsoleOutput/CsvBridgeLogger.cs`
+- **Dateien:** `Hekiris.Console/ConsoleOutput/CsvBridgeLogger.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Application/OpenCodeAvailabilityTracker.cs`
+- **Dateien:** `Hekiris.Console/Application/OpenCodeAvailabilityTracker.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Application/CommandTimeLoopScheduler.cs`
+- **Dateien:** `Hekiris.Console/Application/CommandTimeLoopScheduler.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console/Configuration/CommandTimeLoopStateStore.cs`
+- **Dateien:** `Hekiris.Console/Configuration/CommandTimeLoopStateStore.cs`
 
-- **Dateien:** `TelegramOpenCodeBridge.Console.Tests/`
+- **Dateien:** `Hekiris.Console.Tests/`
 
 ## Notes
 
-- `dotnet new sln -n TelegramOpenCodeBridge` hat in dieser Umgebung eine `.slnx` erzeugt; die Solution-Datei heißt deshalb `TelegramOpenCodeBridge.slnx`.
+- `dotnet new sln -n Hekiris` hat in dieser Umgebung eine `.slnx` erzeugt; die Solution-Datei heißt deshalb `Hekiris.slnx`.

@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="TelegramOpenCodeBridge.Console/TelegramOpenCodeBridge.Console.csproj" />
-  <Project Path="TelegramOpenCodeBridge.Console.Tests/TelegramOpenCodeBridge.Console.Tests.csproj" />
-</Solution>

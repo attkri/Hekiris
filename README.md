@@ -1,16 +1,30 @@
-# TelegramOpenCodeBridge
+# Hekiris
+
+Hekiris = Hekate (Kreuzungen) + Iris (Übermittlung)
+
+## Brand-Richtung
+
+- One-liner: Hekiris bringt OpenCode in die Kanäle, die wir bereits nutzen.
+- Gute Claim-Richtung: Der direkte Weg von Nachricht zu Aktion.
+- Produktarchitektur, die ich empfehlen würde:
+
+- Hekiris Core — Hauptprodukt
+- Hekiris Chronos — Scheduler / Intervall-Prompts
+- Hekiris Hermes — Schnellkommandos / Shortcuts
+- Hekiris Argus — Health / Monitoring
+- Hekiris Portals — Kanaladapter wie Telegram, WhatsApp, Voice
 
 ## Überblick
 
-`TelegramOpenCodeBridge` ist eine .NET-10-Console-App, die Telegram-Nachrichten aus freigegebenen Chats an einen laufenden OpenCode-Server weiterleitet.
+`Hekiris` ist eine .NET-10-Console-App, die Telegram-Nachrichten aus freigegebenen Chats an einen laufenden OpenCode-Server weiterleitet.
 
 Die Anwendung nutzt pro Telegram-Chat genau eine vorkonfigurierte OpenCode-Session, verarbeitet Textnachrichten seriell je Chat und sendet die Antwort zurück an Telegram.
 
-Die Steuerung erfolgt über JSON-Konfiguration und die CLI-Kommandos `tocb start`, `tocb check`, `tocb config show` und `tocb help`.
+Die Steuerung erfolgt über JSON-Konfiguration und die CLI-Kommandos `Hekiris start`, `Hekiris check`, `Hekiris config show` und `Hekiris help`.
 
-Beim Start und beim geordneten Beenden sendet die Bridge Statusmeldungen an die konfigurierten Telegram-Chats. Zusätzlich überwacht sie den OpenCode-Server im Hintergrund und meldet Erreichbarkeitswechsel ebenfalls an Telegram.
+Beim Start und beim geordneten Beenden sendet Hekiris Statusmeldungen an die konfigurierten Telegram-Chats. Zusätzlich überwacht Hekiris den OpenCode-Server im Hintergrund und meldet Erreichbarkeitswechsel ebenfalls an Telegram.
 
-Im Chat unterstützt die Bridge außerdem `/help`, `/stop`, `/ss`, `/sc`, konfigurierte Kommandos wie `/c1` und Stop-Kommandos wie `/c1s`.
+Im Chat unterstützt Hekiris außerdem `/help`, `/stop`, `/ss`, `/sc`, konfigurierte Kommandos wie `/c1` und Stop-Kommandos wie `/c1s`.
 
 Secrets bleiben außerhalb des Repos: Die App kann das Telegram-Token aus einer externen Secret-Datei einlesen und maskiert sensible Werte bei der Konfigurationsausgabe.
 
@@ -30,15 +44,15 @@ Die erste Version ist bewusst schlank gehalten: keine GUI, kein Windows-Service,
 
 ## Projektstruktur
 
-- `TelegramOpenCodeBridge.slnx` - Visual-Studio-Projektmappe
+- `Hekiris.slnx` - Visual-Studio-Projektmappe
 
-- `TelegramOpenCodeBridge.Console/` - Console-App
+- `Hekiris.Console/` - Console-App
 
-- `TelegramOpenCodeBridge.Console.Tests/` - xUnit-Tests
+- `Hekiris.Console.Tests/` - xUnit-Tests
 
 ## Konfiguration
 
-Die Bridge lädt ihre feste Konfiguration aus `C:\Users\attila\.config\TelegramOpenCodeBridge\config.json`. Eine Repo-Vorlage liegt in `TelegramOpenCodeBridge.Console/config.template.json`.
+Hekiris lädt ihre feste Konfiguration aus `C:\Users\attila\.config\Hekiris\config.json`. Eine Repo-Vorlage liegt in `Hekiris.Console/config.template.json`.
 
 Die Konfiguration wird mit großgeschriebenem Anfangsbuchstaben pro JSON-Key geführt, z. B. `Telegram`, `OpenCode`, `AccessControl`, `AllowedUserIds`.
 
@@ -86,17 +100,17 @@ Beispiel für `Commands`:
 }
 ```
 
-Wenn `Model` keinen Provider enthält, verwendet die Bridge standardmäßig `openai`.
+Wenn `Model` keinen Provider enthält, verwendet Hekiris standardmäßig `openai`.
 
-Ist `Commands[].TimeLoop.Enabled=true`, setzt die Bridge das Kommando automatisch nach dem Intervall ab. `LastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
+Ist `Commands[].TimeLoop.Enabled=true`, setzt Hekiris das Kommando automatisch nach dem Intervall ab. `LastRun` wird dabei schon beim Einplanen aktualisiert, damit ein fehlgeschlagener Lauf nicht sofort erneut gestartet wird.
 
 ## Chatbefehle
 
-- `/help` - zeigt die verfügbaren Bridge-Befehle an
+- `/help` - zeigt die verfügbaren Hekiris-Befehle an
 
-- `/stop` - stoppt die Bridge kontrolliert
+- `/stop` - stoppt Hekiris kontrolliert
 
-- `/ss` - sendet den aktuellen Bridge-Status inklusive Grund-Session, Command-Status sowie Loop-, Intervall- und LastRun-Infos
+- `/ss` - sendet den aktuellen Hekiris-Status inklusive Grund-Session, Command-Status sowie Loop-, Intervall- und LastRun-Infos
 
 - `/sc` - listet alle konfigurierten Kommandos mit `/c1`, `/c2`, ... auf
 
@@ -104,23 +118,23 @@ Ist `Commands[].TimeLoop.Enabled=true`, setzt die Bridge das Kommando automatisc
 
 ## Logging
 
-Die Bridge legt pro Tag eine CSV-Datei im Format `yyyy-MM-dd-OCBridge.csv` unter `C:\Users\attila\.logs\TelegramOpenCodeBridge\` an, z. B. `C:\Users\attila\.logs\TelegramOpenCodeBridge\2026-03-13-OCBridge.csv`.
+Hekiris legt pro Tag eine CSV-Datei im Format `yyyy-MM-dd-Hekiris.csv` unter `C:\Users\attila\.logs\Hekiris\` an, z. B. `C:\Users\attila\.logs\Hekiris\2026-03-13-Hekiris.csv`.
 
 Die Logdatei enthält den Header `Timestamp; severity; Message`, rotiert automatisch auf maximal 10 Tage und schreibt keine Chat-Inhalte oder Secrets.
 
-Bei eingehenden Nachrichten protokolliert die Bridge zusätzlich `chatId`, `userId` und `username`, damit freigegebene Telegram-Nutzer sauber in die Konfiguration übernommen werden können. Nicht freigegebene Nachrichten werden still verworfen, nur geloggt und weder beantwortet noch an OpenCode weitergegeben.
+Bei eingehenden Nachrichten protokolliert Hekiris zusätzlich `chatId`, `userId` und `username`, damit freigegebene Telegram-Nutzer sauber in die Konfiguration übernommen werden können. Nicht freigegebene Nachrichten werden still verworfen, nur geloggt und weder beantwortet noch an OpenCode weitergegeben.
 
 ## Nutzung
 
 ```powershell
-dotnet run --project .\TelegramOpenCodeBridge.Console -- help
-dotnet run --project .\TelegramOpenCodeBridge.Console -- check
-dotnet run --project .\TelegramOpenCodeBridge.Console -- config show
-dotnet run --project .\TelegramOpenCodeBridge.Console -- start
+dotnet run --project .\Hekiris.Console -- help
+dotnet run --project .\Hekiris.Console -- check
+dotnet run --project .\Hekiris.Console -- config show
+dotnet run --project .\Hekiris.Console -- start
 ```
 
 ## Tests
 
 ```powershell
-dotnet test .\TelegramOpenCodeBridge.slnx
+dotnet test .\Hekiris.slnx
 ```
