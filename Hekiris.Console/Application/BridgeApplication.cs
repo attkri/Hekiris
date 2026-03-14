@@ -385,7 +385,7 @@ public sealed class BridgeApplication
                     await RequestStopAsync();
                     return;
                 case BridgeChatCommandType.ShowStatus:
-                    await _telegramClient.SendMessageAsync(message.Chat.Id, BuildStatusText(message.Chat.Id), CancellationToken.None);
+                    await _telegramClient.SendMessageAsync(message.Chat.Id, await BuildStatusTextAsync(message.Chat.Id, CancellationToken.None), CancellationToken.None);
                     _console.WriteInfo($"Status sent to chat {message.Chat.Id}.");
                     return;
                 case BridgeChatCommandType.ShowCommands:
@@ -424,6 +424,8 @@ public sealed class BridgeApplication
 
                     ConfiguredCommandOptions configuredCommand = _options.Commands[chatCommand.CommandIndex.Value];
                     string effectiveSessionId = ResolveCommandSessionId(chatBinding, configuredCommand);
+                    string? effectiveAgent = ResolveCommandAgent(chatBinding, configuredCommand);
+                    string? effectiveWorkingDirectory = ResolveWorkingDirectory(chatBinding, configuredCommand);
                     ChatRequest configuredRequest = new(
                         message.Chat.Id,
                         new[] { message.Chat.Id },
@@ -431,7 +433,8 @@ public sealed class BridgeApplication
                         message.From?.Username,
                         configuredCommand.Prompt,
                         effectiveSessionId,
-                        ResolveCommandAgent(chatBinding, configuredCommand),
+                        effectiveAgent,
+                        effectiveWorkingDirectory,
                         configuredCommand.Title,
                         chatCommand.CommandIndex.Value + 1,
                         false);
@@ -453,6 +456,7 @@ public sealed class BridgeApplication
                 incomingText,
                 chatBinding.OpenCodeSessionId,
                 string.IsNullOrWhiteSpace(chatBinding.Agent) ? null : chatBinding.Agent,
+                string.IsNullOrWhiteSpace(chatBinding.WorkingDirectory) ? null : chatBinding.WorkingDirectory,
                 null,
                 null,
                 false);
@@ -532,7 +536,12 @@ public sealed class BridgeApplication
 
             try
             {
-                string response = await _openCodeClient.SendPromptAsync(request.OpenCodeSessionId, request.Text, request.ConfiguredAgent, cancellationToken);
+                string response = await _openCodeClient.SendPromptAsync(
+                    request.OpenCodeSessionId,
+                    request.Text,
+                    request.ConfiguredAgent,
+                    request.WorkingDirectory,
+                    cancellationToken);
                 await _openCodeAvailabilityTracker.ReportAvailableAsync(CancellationToken.None);
 
                 if (string.IsNullOrWhiteSpace(response))
@@ -579,26 +588,17 @@ public sealed class BridgeApplication
             }
         }
 
-        private string BuildStatusText(long chatId)
+        private async Task<string> BuildStatusTextAsync(long chatId, CancellationToken cancellationToken)
         {
             ChatRuntimeStatusSnapshot runtimeStatus = _chatRequestQueue.GetChatRuntimeStatus(chatId, _options.Commands.Count);
             StringBuilder builder = new();
-            builder.AppendLine("Hekiris status:");
-            builder.AppendLine($"- Hekiris: {(IsStopping ? "stopping" : "running")}");
-            builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "reachable" : "unreachable")}");
-            builder.AppendLine($"- Base session: {FormatRuntimeState(runtimeStatus.BaseSessionState)}");
-            builder.AppendLine($"- Configured base agent: {FormatConfiguredAgent(_options.Chat.Agent)}");
+            string baseActiveAgent = await TryGetLastUsedAgentLabelAsync(_options.Chat.OpenCodeSessionId, cancellationToken);
 
-            if (runtimeStatus.ActiveRequest is not null)
-            {
-                builder.AppendLine(runtimeStatus.ActiveRequest.ConfiguredCommandNumber is null
-                    ? "- Active job: base session"
-                    : $"- Active job: /c{runtimeStatus.ActiveRequest.ConfiguredCommandNumber} {runtimeStatus.ActiveRequest.ConfiguredCommandTitle}");
-            }
-            else
-            {
-                builder.AppendLine("- Active job: none");
-            }
+            builder.AppendLine("Hekiris status:");
+            builder.AppendLine($"- OpenCode: {(_openCodeAvailabilityTracker.IsAvailable ? "reachable" : "unreachable")}");
+            builder.AppendLine($"- Base session: {FormatRuntimeState(runtimeStatus.BaseSessionState)} ({_options.Chat.OpenCodeSessionId})");
+            builder.AppendLine($"- Base working directory: {FormatWorkingDirectory(_options.Chat.WorkingDirectory)}");
+            builder.AppendLine($"- Last used agent in base session: {baseActiveAgent}");
 
             if (_options.Commands.Count > 0)
             {
@@ -611,14 +611,19 @@ public sealed class BridgeApplication
                     RequestRuntimeState state = runtimeStatus.CommandStates[commandNumber];
                     ConfiguredCommandOptions command = _options.Commands[index];
                     CommandTimeLoopOptions? timeLoop = command.TimeLoop;
-                    string configuredAgent = FormatConfiguredAgent(ResolveCommandAgent(_options.Chat, command));
+                    string effectiveSessionId = ResolveCommandSessionId(_options.Chat, command);
+                    string activeAgent = await TryGetLastUsedAgentLabelAsync(effectiveSessionId, cancellationToken);
+                    string workingDirectory = FormatWorkingDirectory(ResolveWorkingDirectory(_options.Chat, command));
+                    string sessionLabel = string.IsNullOrWhiteSpace(command.Session)
+                        ? $"base session ({effectiveSessionId})"
+                        : effectiveSessionId;
 
                     string loopStatus = timeLoop?.Enabled == true ? "on" : "off";
                     string interval = string.IsNullOrWhiteSpace(timeLoop?.Interval) ? "-" : timeLoop!.Interval;
                     string lastRun = timeLoop?.LastRun is null ? "-" : timeLoop.LastRun.Value.ToString("yyyy-MM-dd HH:mm:ss");
 
                     builder.AppendLine(
-                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Agent {configuredAgent} | Loop {loopStatus} | Interval {interval} | LastRun {lastRun}");
+                        $"- /c{commandNumber} {command.Title}: {FormatRuntimeState(state)} | Session {sessionLabel} | WorkingDirectory {workingDirectory} | Last used agent in session {activeAgent} | Loop {loopStatus} | Interval {interval} | LastRun {lastRun}");
                 }
             }
 
@@ -657,12 +662,16 @@ public sealed class BridgeApplication
 
         private static string? ResolveCommandAgent(ChatBindingOptions chatBinding, ConfiguredCommandOptions command)
         {
-            if (!string.IsNullOrWhiteSpace(command.Agent))
-            {
-                return command.Agent;
-            }
+            return !string.IsNullOrWhiteSpace(command.Agent)
+                ? command.Agent
+                : string.IsNullOrWhiteSpace(chatBinding.Agent) ? null : chatBinding.Agent;
+        }
 
-            return string.IsNullOrWhiteSpace(chatBinding.Agent) ? null : chatBinding.Agent;
+        private static string? ResolveWorkingDirectory(ChatBindingOptions chatBinding, ConfiguredCommandOptions command)
+        {
+            return !string.IsNullOrWhiteSpace(command.WorkingDirectory)
+                ? command.WorkingDirectory
+                : string.IsNullOrWhiteSpace(chatBinding.WorkingDirectory) ? null : chatBinding.WorkingDirectory;
         }
 
         private static string FormatRuntimeState(RequestRuntimeState state)
@@ -675,9 +684,23 @@ public sealed class BridgeApplication
             };
         }
 
-        private static string FormatConfiguredAgent(string? agent)
+        private static string FormatWorkingDirectory(string? workingDirectory)
         {
-            return string.IsNullOrWhiteSpace(agent) ? "session default" : agent;
+            return string.IsNullOrWhiteSpace(workingDirectory) ? "not set" : workingDirectory;
+        }
+
+        private async Task<string> TryGetLastUsedAgentLabelAsync(string sessionId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string? agent = await _openCodeClient.GetLastUsedAgentAsync(sessionId, cancellationToken);
+                return string.IsNullOrWhiteSpace(agent) ? "session default" : agent;
+            }
+            catch (Exception exception)
+            {
+                _console.WriteWarning($"Could not resolve last used agent for session {sessionId}: {exception.Message}");
+                return "unknown";
+            }
         }
 
         private async Task SendMessageToRequestTargetsAsync(ChatRequest request, string message, CancellationToken cancellationToken)
@@ -746,6 +769,7 @@ public sealed class BridgeApplication
                         command.Prompt,
                         ResolveCommandSessionId(defaultChatBinding, command),
                         ResolveCommandAgent(defaultChatBinding, command),
+                        ResolveWorkingDirectory(defaultChatBinding, command),
                         command.Title,
                         index + 1,
                         true);
@@ -839,13 +863,13 @@ public sealed class BridgeApplication
             {
                 await _openCodeClient.GetHealthAsync(cancellationToken);
                 _openCodeAvailabilityTracker.SetAvailability(true);
-                return $"Hekiris started and is ready. (/help) Base agent: {FormatConfiguredAgent(_options.Chat.Agent)}";
+                return "Hekiris started and is ready. (/help)";
             }
             catch (Exception exception)
             {
                 _openCodeAvailabilityTracker.SetAvailability(false);
                 _console.WriteWarning($"OpenCode server is unreachable at startup: {exception.Message}");
-                return $"Hekiris started, but the OpenCode server is currently unreachable. (/help) Base agent: {FormatConfiguredAgent(_options.Chat.Agent)}";
+                return "Hekiris started, but the OpenCode server is currently unreachable. (/help)";
             }
         }
 

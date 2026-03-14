@@ -38,6 +38,7 @@ public sealed class AppConfigurationValidatorTests
                 {
                     Title = "",
                     Session = "abc",
+                    WorkingDirectory = "relative/path",
                     Prompt = "",
                     TimeLoop = new CommandTimeLoopOptions
                     {
@@ -61,6 +62,7 @@ public sealed class AppConfigurationValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("Chat.AllowedUsernames", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Title", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Session", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("Commands[1].WorkingDirectory", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("Commands[1].Prompt", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("TimeLoop.Interval", StringComparison.Ordinal));
     }

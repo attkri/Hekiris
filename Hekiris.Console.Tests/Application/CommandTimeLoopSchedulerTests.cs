@@ -20,7 +20,6 @@ public sealed class CommandTimeLoopSchedulerTests
         {
             Title = "Ping",
             Session = "ses_test",
-            Agent = "Nova",
             Prompt = "ping",
             TimeLoop = new CommandTimeLoopOptions
             {

@@ -81,6 +81,11 @@ public sealed class AppConfigurationValidator
             result.Add($"Chat.AllowedUsernames must not contain empty values.");
         }
 
+        if (!string.IsNullOrWhiteSpace(binding.WorkingDirectory) && !Path.IsPathRooted(binding.WorkingDirectory))
+        {
+            result.Add("Chat.WorkingDirectory must be an absolute path.");
+        }
+
         if (options.AccessControl.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
         {
             result.Add("AccessControl.AllowedUsernames must not contain empty values.");
@@ -105,6 +110,11 @@ public sealed class AppConfigurationValidator
             if (string.IsNullOrWhiteSpace(command.Prompt))
             {
                 result.Add($"Commands[{displayIndex}].Prompt must not be empty.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.WorkingDirectory) && !Path.IsPathRooted(command.WorkingDirectory))
+            {
+                result.Add($"Commands[{displayIndex}].WorkingDirectory must be an absolute path.");
             }
 
             if (command.TimeLoop?.Enabled == true)

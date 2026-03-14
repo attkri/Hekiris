@@ -61,10 +61,30 @@ public sealed class OpenCodeClient : IDisposable
         return true;
     }
 
+    public async Task<string?> GetLastUsedAgentAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await _httpClient.GetAsync($"session/{Uri.EscapeDataString(sessionId)}/message", cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        SessionMessageEnvelope[]? messages = await response.Content.ReadFromJsonAsync<SessionMessageEnvelope[]>(SerializerOptions, cancellationToken);
+        if (messages is null || messages.Length == 0)
+        {
+            return null;
+        }
+
+        SessionMessageEnvelope? latestMessage = messages
+            .Where(message => message.Info?.Time?.Created is not null)
+            .OrderByDescending(message => message.Info!.Time!.Created)
+            .FirstOrDefault();
+
+        return latestMessage?.Info?.Agent;
+    }
+
     public async Task<string> SendPromptAsync(
         string sessionId,
         string prompt,
         string? agent,
+        string? workingDirectory,
         CancellationToken cancellationToken)
     {
         PromptRequest request = new()
@@ -77,9 +97,16 @@ public sealed class OpenCodeClient : IDisposable
                     Text = prompt,
                 },
             ],
+            Agent = string.IsNullOrWhiteSpace(agent) ? null : agent,
         };
 
-        using HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"session/{Uri.EscapeDataString(sessionId)}/message", request, SerializerOptions, cancellationToken);
+        string requestUri = $"session/{Uri.EscapeDataString(sessionId)}/message";
+        if (!string.IsNullOrWhiteSpace(workingDirectory))
+        {
+            requestUri += $"?directory={Uri.EscapeDataString(workingDirectory)}";
+        }
+
+        using HttpResponseMessage response = await _httpClient.PostAsJsonAsync(requestUri, request, SerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
         string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -208,6 +235,27 @@ public sealed class OpenCodeClient : IDisposable
 
         [JsonPropertyName("text")]
         public string Text { get; set; } = string.Empty;
+    }
+
+    private sealed class SessionMessageEnvelope
+    {
+        [JsonPropertyName("info")]
+        public SessionMessageInfo? Info { get; set; }
+    }
+
+    private sealed class SessionMessageInfo
+    {
+        [JsonPropertyName("agent")]
+        public string? Agent { get; set; }
+
+        [JsonPropertyName("time")]
+        public SessionMessageTime? Time { get; set; }
+    }
+
+    private sealed class SessionMessageTime
+    {
+        [JsonPropertyName("created")]
+        public long? Created { get; set; }
     }
 }
 

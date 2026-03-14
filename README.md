@@ -89,9 +89,9 @@ Important sections:
 
 - `Runtime` - queue sizes, polling behavior, health checks, and shutdown behavior
 
-- `Chat` - the single base chat binding with `TelegramChatId`, `OpenCodeSessionId`, and an optional default `Agent`
+- `Chat` - the single base chat binding with `TelegramChatId`, `OpenCodeSessionId`, `Agent`, and `WorkingDirectory`
 
-- `Commands` - predefined command presets with `Title`, optional `Session`, optional `Agent`, `Prompt`, and optional `TimeLoop`
+- `Commands` - predefined command presets with `Title`, optional `Session`, optional `Agent`, optional `WorkingDirectory`, `Prompt`, and optional `TimeLoop`
 
 Example:
 
@@ -110,13 +110,15 @@ Example:
   "Chat": {
     "TelegramChatId": 123456789,
     "OpenCodeSessionId": "ses_base_example",
-    "Agent": "Nova"
+    "Agent": "Nova",
+    "WorkingDirectory": "C:\\Users\\name\\Projects\\MyRepo"
   },
   "Commands": [
     {
       "Title": "Daily Summary",
       "Session": "",
       "Agent": "",
+      "WorkingDirectory": "",
       "Prompt": "Create today\'s summary.",
       "TimeLoop": {
         "Enabled": false,
@@ -127,11 +129,15 @@ Example:
 }
 ```
 
-`Chat.Agent` and `Commands[].Agent` can already be configured, but Hekiris does not currently forward the agent field to OpenCode yet.
-
 If `Commands[].Session` is empty, the command falls back to the base chat session.
 
-If `Commands[].Agent` is empty, the command falls back to the chat agent for configuration purposes. At runtime Hekiris currently relies on the session-side OpenCode defaults.
+If `Commands[].Agent` is empty, the command falls back to `Chat.Agent`.
+
+If `Commands[].WorkingDirectory` is empty, the command falls back to `Chat.WorkingDirectory`.
+
+Hekiris sends both `agent` and `?directory=...` to OpenCode so repo-local agents such as `Nova` can be resolved correctly.
+
+Use absolute Windows paths for `WorkingDirectory`, for example `C:\Users\name\Projects\MyRepo`.
 
 If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatically. `LastRun` is optional in the file and is updated by Hekiris when a scheduled command is queued so failed runs are not retried immediately in a tight loop.
 
@@ -139,9 +145,9 @@ If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatical
 
 - Set valid Telegram allowlists in `AccessControl.AllowedUserIds` and `AccessControl.AllowedUsernames`
 
-- Fill `Chat` with the Telegram chat ID, its base OpenCode session ID, and optionally a default agent
+- Fill `Chat` with the Telegram chat ID, its base OpenCode session ID, the agent name, and the absolute working directory for that repo
 
-- Add any optional `Commands[]` entries you want to run from chat or on a schedule; leave `Session` empty to reuse the base chat session
+- Add any optional `Commands[]` entries you want to run from chat or on a schedule; leave `Session`, `Agent`, or `WorkingDirectory` empty to reuse the base chat defaults
 
 - Make sure each referenced OpenCode session already exists
 
@@ -153,7 +159,7 @@ If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatical
 
 - `/stop` - stop Hekiris gracefully
 
-- `/ss` - show the current Hekiris runtime status, including base session, command states, loop state, interval, and `LastRun`
+- `/ss` - show the current Hekiris runtime status, including base session, command states, working directory, last used agents, loop state, interval, and `LastRun`
 
 - `/sc` - list configured commands and their `/cN` shortcuts
 

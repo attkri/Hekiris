@@ -252,6 +252,7 @@ public sealed record ChatRequest(
     string Text,
     string OpenCodeSessionId,
     string? ConfiguredAgent,
+    string? WorkingDirectory,
     string? ConfiguredCommandTitle,
     int? ConfiguredCommandNumber,
     bool IsAutomatic = false);

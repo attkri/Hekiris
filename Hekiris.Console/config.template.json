@@ -27,6 +27,7 @@
     "TelegramChatId": 123456789,
     "OpenCodeSessionId": "ses_base_example",
     "Agent": "Nova",
+    "WorkingDirectory": "C:\\Users\\name\\Projects\\MyRepo",
     "AllowedUserIds": [],
     "AllowedUsernames": []
   },
@@ -35,6 +36,7 @@
       "Title": "Daily Summary",
       "Session": "",
       "Agent": "",
+      "WorkingDirectory": "",
       "Prompt": "Create today's summary.",
       "TimeLoop": {
         "Enabled": false,

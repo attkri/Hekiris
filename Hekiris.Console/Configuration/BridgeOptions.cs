@@ -67,6 +67,8 @@ public sealed class ChatBindingOptions
 
     public string Agent { get; set; } = string.Empty;
 
+    public string WorkingDirectory { get; set; } = string.Empty;
+
     public List<long> AllowedUserIds { get; set; } = new();
 
     public List<string> AllowedUsernames { get; set; } = new();
@@ -79,6 +81,8 @@ public sealed class ConfiguredCommandOptions
     public string Session { get; set; } = string.Empty;
 
     public string Agent { get; set; } = string.Empty;
+
+    public string WorkingDirectory { get; set; } = string.Empty;
 
     public string Prompt { get; set; } = string.Empty;
 

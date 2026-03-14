@@ -2,8 +2,8 @@
 
 ## Current
 
-- **New:** Hekiris can now bridge Telegram chats to OpenCode with dedicated command sessions, scheduled command loops, and chat-driven command controls.
+- **New:** Commands can now reuse the base chat defaults for session, agent, and working directory so shared repo setups need less duplicate configuration.
 
-- **Improved:** Setup is easier because runtime config and daily logs live in fixed user directories outside the repository.
+- **Improved:** Requests now reliably reach OpenCode with the correct agent and working directory, so repo-local agents such as Nova resolve correctly again.
 
-- **Fixed:** Access control, shutdown notifications, and persisted `LastRun` handling are now more reliable and safer for unattended automation.
+- **Fixed:** `/ss` now shows session, working directory, and last run details more clearly, making runtime diagnostics easier to read.

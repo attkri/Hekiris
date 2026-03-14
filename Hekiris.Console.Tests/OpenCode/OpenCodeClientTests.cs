@@ -30,15 +30,15 @@ public sealed class OpenCodeClientTests
 
         using OpenCodeClient client = new(httpClient);
 
-        string result = await client.SendPromptAsync("ses_test", "Ping", null, CancellationToken.None);
+        string result = await client.SendPromptAsync("ses_test", "Ping", "Nova", @"C:\Repo", CancellationToken.None);
 
         Assert.Equal("Hallo" + Environment.NewLine + Environment.NewLine + "Welt", result);
         Assert.Equal(HttpMethod.Post, handler.Requests.Single().Method);
-        Assert.EndsWith("/session/ses_test/message", handler.Requests.Single().RequestUri!.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Contains("/session/ses_test/message?directory=", handler.Requests.Single().RequestUri!.AbsoluteUri, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task SendPromptAsync_DoesNotSendAgentField()
+    public async Task SendPromptAsync_SendsAgentField()
     {
         StubHttpMessageHandler handler = new(
             _ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -60,11 +60,11 @@ public sealed class OpenCodeClientTests
 
         using OpenCodeClient client = new(httpClient);
 
-        await client.SendPromptAsync("ses_test", "Ping", "Nova", CancellationToken.None);
+        await client.SendPromptAsync("ses_test", "Ping", "Nova", @"C:\Repo", CancellationToken.None);
 
         string body = await handler.Requests.Single().Content!.ReadAsStringAsync();
 
-        Assert.DoesNotContain("\"agent\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"agent\":\"Nova\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -108,6 +108,42 @@ public sealed class OpenCodeClientTests
         using OpenCodeClient client = new(httpClient);
 
         await Assert.ThrowsAsync<OpenCodeException>(() => client.GetHealthAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetLastUsedAgentAsync_ReturnsLatestAgent()
+    {
+        StubHttpMessageHandler handler = new(
+            _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                [
+                  {
+                    "info": {
+                      "agent": "build",
+                      "time": { "created": 100 }
+                    }
+                  },
+                  {
+                    "info": {
+                      "agent": "Nova",
+                      "time": { "created": 200 }
+                    }
+                  }
+                ]
+                """)
+            });
+
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("http://localhost:4096/"),
+        };
+
+        using OpenCodeClient client = new(httpClient);
+
+        string? agent = await client.GetLastUsedAgentAsync("ses_test", CancellationToken.None);
+
+        Assert.Equal("Nova", agent);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
