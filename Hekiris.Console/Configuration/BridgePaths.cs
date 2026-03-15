@@ -1,4 +1,4 @@
-namespace Hekiris.Configuration;
+namespace Hekiris.Infrastructure.Configuration;
 
 public static class BridgePaths
 {

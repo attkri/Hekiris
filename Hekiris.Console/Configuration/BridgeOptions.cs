@@ -1,4 +1,4 @@
-namespace Hekiris.Configuration;
+namespace Hekiris.Infrastructure.Configuration;
 
 public sealed class BridgeOptions
 {
@@ -39,9 +39,9 @@ public sealed class OpenCodeOptions
 
 public sealed class AccessControlOptions
 {
-    public List<long> AllowedUserIds { get; set; } = new();
+    public long AllowedUserId { get; set; }
 
-    public List<string> AllowedUsernames { get; set; } = new();
+    public string AllowedUsername { get; set; } = string.Empty;
 }
 
 public sealed class RuntimeOptions
@@ -51,8 +51,6 @@ public sealed class RuntimeOptions
     public int TelegramRetryDelaySeconds { get; set; } = 5;
 
     public int OpenCodeHealthCheckIntervalSeconds { get; set; } = 30;
-
-    public bool StartupSessionValidation { get; set; } = true;
 
     public bool RejectMessagesWhenStopping { get; set; } = true;
 
@@ -68,10 +66,6 @@ public sealed class ChatBindingOptions
     public string Agent { get; set; } = string.Empty;
 
     public string WorkingDirectory { get; set; } = string.Empty;
-
-    public List<long> AllowedUserIds { get; set; } = new();
-
-    public List<string> AllowedUsernames { get; set; } = new();
 }
 
 public sealed class ConfiguredCommandOptions

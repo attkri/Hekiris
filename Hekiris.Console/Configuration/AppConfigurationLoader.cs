@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Hekiris.Configuration;
+namespace Hekiris.Infrastructure.Configuration;
 
 public sealed class AppConfigurationLoader
 {
@@ -23,7 +23,7 @@ public sealed class AppConfigurationLoader
     {
         string basePath = ResolveConfigPath(_configPathOverride);
         JsonObject mergedConfiguration = LoadObject(basePath);
-        NormalizeAccessControlCollections(mergedConfiguration);
+        NormalizeLegacyConfiguration(mergedConfiguration);
 
         BridgeOptions? options = mergedConfiguration.Deserialize<BridgeOptions>(SerializerOptions);
         if (options is null)
@@ -100,56 +100,93 @@ public sealed class AppConfigurationLoader
         public string? AccessToken { get; set; }
     }
 
-    private static void NormalizeAccessControlCollections(JsonObject root)
+    private static void NormalizeLegacyConfiguration(JsonObject root)
     {
-        NormalizeAllowedValuesOnObject(GetObject(root, "accessControl", "AccessControl"));
-        NormalizeAllowedValuesOnObject(GetObject(root, "chat", "Chat"));
+        NormalizeAccessControl(GetObject(root, "accessControl", "AccessControl"));
     }
 
-    private static void NormalizeAllowedValuesOnObject(JsonObject? jsonObject)
+    private static void NormalizeAccessControl(JsonObject? jsonObject)
     {
         if (jsonObject is null)
         {
             return;
         }
 
-        NormalizeToLongArray(jsonObject, "allowedUserIds", "AllowedUserIds");
-        NormalizeToStringArray(jsonObject, "allowedUsernames", "AllowedUsernames");
+        NormalizeToLongValue(jsonObject, "AllowedUserId", "allowedUserId", "AllowedUserIds", "allowedUserIds");
+        NormalizeToStringValue(jsonObject, "AllowedUsername", "allowedUsername", "AllowedUsernames", "allowedUsernames");
     }
 
-    private static void NormalizeToLongArray(JsonObject jsonObject, params string[] candidateNames)
+    private static void NormalizeToLongValue(JsonObject jsonObject, params string[] candidateNames)
     {
         foreach (string candidateName in candidateNames)
         {
-            if (jsonObject[candidateName] is not JsonValue jsonValue)
+            JsonNode? node = jsonObject[candidateName];
+            if (node is JsonArray jsonArray && jsonArray.Count > 0 && jsonArray[0] is JsonValue firstValue)
             {
-                continue;
+                if (jsonArray.Count > 1)
+                {
+                    throw new ConfigurationException("AccessControl.AllowedUserId supports exactly one user.");
+                }
+
+                if (firstValue.TryGetValue<long>(out long arrayLongValue))
+                {
+                    jsonObject["AllowedUserId"] = arrayLongValue;
+                    return;
+                }
+
+                if (firstValue.TryGetValue<string>(out string? arrayStringValue)
+                    && long.TryParse(arrayStringValue, out long parsedArrayValue))
+                {
+                    jsonObject["AllowedUserId"] = parsedArrayValue;
+                    return;
+                }
             }
 
-            if (jsonValue.TryGetValue<long>(out long longValue))
+            if (node is not JsonValue jsonValue)
             {
-                jsonObject[candidateName] = new JsonArray(longValue);
-                return;
+                continue;
             }
 
             if (jsonValue.TryGetValue<string>(out string? stringValue)
                 && long.TryParse(stringValue, out long parsedValue))
             {
-                jsonObject[candidateName] = new JsonArray(parsedValue);
+                jsonObject["AllowedUserId"] = parsedValue;
+                return;
+            }
+
+            if (jsonValue.TryGetValue<long>(out long longValue))
+            {
+                jsonObject["AllowedUserId"] = longValue;
                 return;
             }
         }
     }
 
-    private static void NormalizeToStringArray(JsonObject jsonObject, params string[] candidateNames)
+    private static void NormalizeToStringValue(JsonObject jsonObject, params string[] candidateNames)
     {
         foreach (string candidateName in candidateNames)
         {
-            if (jsonObject[candidateName] is JsonValue jsonValue
+            JsonNode? node = jsonObject[candidateName];
+            if (node is JsonArray jsonArray
+                && jsonArray.Count > 0
+                && jsonArray[0] is JsonValue firstValue
+                && firstValue.TryGetValue<string>(out string? firstStringValue)
+                && !string.IsNullOrWhiteSpace(firstStringValue))
+            {
+                if (jsonArray.Count > 1)
+                {
+                    throw new ConfigurationException("AccessControl.AllowedUsername supports exactly one user.");
+                }
+
+                jsonObject["AllowedUsername"] = firstStringValue;
+                return;
+            }
+
+            if (node is JsonValue jsonValue
                 && jsonValue.TryGetValue<string>(out string? stringValue)
                 && !string.IsNullOrWhiteSpace(stringValue))
             {
-                jsonObject[candidateName] = new JsonArray(stringValue);
+                jsonObject["AllowedUsername"] = stringValue;
                 return;
             }
         }

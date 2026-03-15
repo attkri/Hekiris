@@ -1,4 +1,4 @@
-using Hekiris.ConsoleOutput;
+using Hekiris.Infrastructure.Logging;
 
 namespace Hekiris.Application;
 

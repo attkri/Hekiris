@@ -4,14 +4,6 @@ Hekiris is a .NET 10 console application that bridges Telegram chats to a runnin
 
 It keeps one base OpenCode session per Telegram chat, supports dedicated command sessions, scheduled command loops, runtime status messages, and fixed user-level config and log locations outside the repository.
 
-## Overview
-
-- `Hekiris.slnx` - Visual Studio solution
-
-- `Hekiris.Console/` - production console application
-
-- `Hekiris.Console.Tests/` - xUnit test project
-
 ## Features
 
 - Receives Telegram messages from explicitly allowed chats and users
@@ -30,8 +22,6 @@ It keeps one base OpenCode session per Telegram chat, supports dedicated command
 
 - Windows 11
 
-- .NET SDK 10.x for building from source
-
 - .NET 10 Desktop Runtime for running the packaged release build
 
 - A running OpenCode server, for example `http://localhost:4096/`
@@ -42,33 +32,32 @@ It keeps one base OpenCode session per Telegram chat, supports dedicated command
 
 ## Installation
 
-1. Clone the repository.
+1. Download the latest `Hekiris-win-x64.zip` from GitHub Releases.
 
-2. Restore and build the solution:
+2. Ensure the .NET 10 Desktop Runtime is installed.
 
-   ```powershell
-   dotnet restore .\Hekiris.slnx
-   dotnet build .\Hekiris.slnx
-   ```
+3. Extract the ZIP to a folder of your choice.
 
-3. Create the fixed runtime config directory if it does not exist:
+4. Create the fixed runtime config directory if it does not exist:
 
    ```powershell
    New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\Hekiris"
    ```
 
-4. Copy the template config into the fixed runtime location:
+5. Copy `config.template.json` from the extracted release folder to `%USERPROFILE%\.config\Hekiris\config.json`.
+
+6. Edit `%USERPROFILE%\.config\Hekiris\config.json`.
+
+7. Run a connection check:
 
    ```powershell
-   Copy-Item .\Hekiris.Console\config.template.json "$env:USERPROFILE\.config\Hekiris\config.json"
+   .\Hekiris.exe check
    ```
 
-5. Edit `%USERPROFILE%\.config\Hekiris\config.json`.
-
-6. Run a connection check:
+8. Start Hekiris:
 
    ```powershell
-   dotnet run --project .\Hekiris.Console -- check
+   .\Hekiris.exe start
    ```
 
 ## Configuration
@@ -85,7 +74,7 @@ Important sections:
 
 - `OpenCode` - OpenCode base URL, optional basic auth, and request timeout
 
-- `AccessControl` - global `AllowedUserIds` and `AllowedUsernames`
+- `AccessControl` - the single allowed Telegram user via `AllowedUserId` and `AllowedUsername`
 
 - `Runtime` - queue sizes, polling behavior, health checks, and shutdown behavior
 
@@ -104,8 +93,8 @@ Example:
     "PollingTimeoutSeconds": 20
   },
   "AccessControl": {
-    "AllowedUserIds": [123456789],
-    "AllowedUsernames": ["example_user"]
+    "AllowedUserId": 123456789,
+    "AllowedUsername": "example_user"
   },
   "Chat": {
     "TelegramChatId": 123456789,
@@ -143,7 +132,7 @@ If `Commands[].TimeLoop.Enabled=true`, Hekiris schedules the command automatical
 
 ## First-Time Setup Checklist
 
-- Set valid Telegram allowlists in `AccessControl.AllowedUserIds` and `AccessControl.AllowedUsernames`
+- Set the allowed Telegram user in `AccessControl.AllowedUserId` and `AccessControl.AllowedUsername`
 
 - Fill `Chat` with the Telegram chat ID, its base OpenCode session ID, the agent name, and the absolute working directory for that repo
 
@@ -183,53 +172,3 @@ The log keeps up to 10 days, excludes secrets, and does not store chat message t
 Incoming Telegram metadata such as `chatId`, `userId`, and `username` is logged so allowlists can be configured safely.
 
 Unauthorized messages are silently discarded, logged, and never forwarded to OpenCode.
-
-## Running Hekiris
-
-```powershell
-dotnet run --project .\Hekiris.Console -- help
-dotnet run --project .\Hekiris.Console -- check
-dotnet run --project .\Hekiris.Console -- config show
-dotnet run --project .\Hekiris.Console -- start
-```
-
-## Install From Release
-
-1. Download the latest `Hekiris-win-x64.zip` from GitHub Releases.
-
-2. Ensure the .NET 10 Desktop Runtime is installed.
-
-3. Extract the ZIP to a folder of your choice.
-
-4. Create the fixed runtime config directory if it does not exist:
-
-   ```powershell
-   New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\Hekiris"
-   ```
-
-5. Copy `config.template.json` from the extracted release folder to `%USERPROFILE%\.config\Hekiris\config.json`.
-
-6. Edit the config with your real Telegram token source, OpenCode URL, allowlist, chats, sessions, and commands.
-
-7. Run:
-
-   ```powershell
-   .\Hekiris.exe check
-   .\Hekiris.exe start
-   ```
-
-## Tests
-
-```powershell
-dotnet test .\Hekiris.slnx
-```
-
-## Releases
-
-GitHub releases are built by `.github/workflows/release-publish.yml` when a tag matching `v*.*.*` is pushed.
-
-Each release publishes a `win-x64` build archive and uses the current notes from `Release-Notes.md`.
-
-## Release Notes
-
-User-facing release highlights are tracked in `Release-Notes.md`.

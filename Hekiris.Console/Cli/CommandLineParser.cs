@@ -1,4 +1,6 @@
-namespace Hekiris.Cli;
+using Hekiris.Application;
+
+namespace Hekiris.Host.Cli;
 
 public static class CommandLineParser
 {
@@ -33,8 +35,10 @@ public static class CommandLineParser
 
     public static string GetHelpText()
     {
+        string version = BridgeVersion.GetDisplayVersion();
+
         return """
-Hekiris
+Hekiris vVERSION
 
 Usage:
   Hekiris start
@@ -47,7 +51,7 @@ Commands:
   check       Validates configuration, Telegram access, OpenCode health, and session mappings.
   config show Shows the loaded configuration with masked secrets.
   help        Shows this help.
-""";
+""".Replace("VERSION", version, StringComparison.Ordinal);
     }
 
     private static bool IsHelpToken(string token)

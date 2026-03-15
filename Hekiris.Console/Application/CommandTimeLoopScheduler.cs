@@ -1,6 +1,7 @@
-using Hekiris.Configuration;
+using Hekiris.Infrastructure.Configuration;
+using Hekiris.Core.Runtime;
 
-namespace Hekiris.Application;
+namespace Hekiris.Core.TimeLoop;
 
 public sealed class CommandTimeLoopScheduler
 {

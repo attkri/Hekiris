@@ -1,9 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hekiris.Application;
 
-namespace Hekiris.Configuration;
+namespace Hekiris.Infrastructure.Configuration;
 
-public sealed class CommandTimeLoopStateStore
+public sealed class CommandTimeLoopStateStore : ICommandTimeLoopStateStore
 {
     private readonly string _configPath;
     private readonly SemaphoreSlim _gate = new(1, 1);

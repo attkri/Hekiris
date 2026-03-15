@@ -1,3 +1,3 @@
-using Hekiris.Application;
+using Hekiris.Host.Cli;
 
-return await new BridgeApplication().RunAsync(args);
+return await BridgeCliHost.RunAsync(args);

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace Hekiris.Application;
+namespace Hekiris.Core.Runtime;
 
 public sealed class ChatRequestQueue
 {
@@ -13,6 +13,7 @@ public sealed class ChatRequestQueue
     private readonly ConcurrentDictionary<string, ChatQueueState> _queues = new();
     private readonly ConcurrentDictionary<string, ActiveChatRequest> _activeRequests = new();
     private readonly ConcurrentDictionary<string, int> _pendingCounts = new();
+    private readonly ConcurrentDictionary<int, int> _pendingConfiguredCommands = new();
     private int _shuttingDown;
 
     public ChatRequestQueue(
@@ -83,7 +84,10 @@ public sealed class ChatRequestQueue
 
     public async Task<bool> TryAbortActiveConfiguredCommandAsync(int commandNumber, CancellationToken cancellationToken)
     {
-        if (!_activeRequests.TryGetValue(GetCommandQueueKey(commandNumber), out ActiveChatRequest? activeRequest))
+        ActiveChatRequest? activeRequest = _activeRequests.Values
+            .FirstOrDefault(item => item.Request.ConfiguredCommandNumber == commandNumber);
+
+        if (activeRequest is null)
         {
             return false;
         }
@@ -105,9 +109,8 @@ public sealed class ChatRequestQueue
         Dictionary<int, RequestRuntimeState> commandStates = new();
         for (int commandNumber = 1; commandNumber <= configuredCommandCount; commandNumber++)
         {
-            _activeRequests.TryGetValue(GetCommandQueueKey(commandNumber), out ActiveChatRequest? commandActiveRequest);
-            bool isRunning = commandActiveRequest is not null;
-            int pendingCount = GetPendingCount(GetCommandQueueKey(commandNumber));
+            bool isRunning = _activeRequests.Values.Any(item => item.Request.ConfiguredCommandNumber == commandNumber);
+            int pendingCount = GetPendingConfiguredCommandCount(commandNumber);
             commandStates[commandNumber] = ToRuntimeState(isRunning, pendingCount);
         }
 
@@ -127,8 +130,8 @@ public sealed class ChatRequestQueue
 
     public RequestRuntimeState GetCommandRuntimeState(int commandNumber)
     {
-        bool isRunning = _activeRequests.ContainsKey(GetCommandQueueKey(commandNumber));
-        int pendingCount = GetPendingCount(GetCommandQueueKey(commandNumber));
+        bool isRunning = _activeRequests.Values.Any(item => item.Request.ConfiguredCommandNumber == commandNumber);
+        int pendingCount = GetPendingConfiguredCommandCount(commandNumber);
         return ToRuntimeState(isRunning, pendingCount);
     }
 
@@ -182,6 +185,11 @@ public sealed class ChatRequestQueue
     {
         string key = GetQueueKey(request);
         _pendingCounts.AddOrUpdate(key, 1, static (_, current) => current + 1);
+
+        if (request.ConfiguredCommandNumber is int commandNumber)
+        {
+            _pendingConfiguredCommands.AddOrUpdate(commandNumber, 1, static (_, current) => current + 1);
+        }
     }
 
     private void DecrementPending(ChatRequest request)
@@ -198,6 +206,7 @@ public sealed class ChatRequestQueue
             {
                 if (_pendingCounts.TryRemove(key, out _))
                 {
+                    DecrementPendingConfiguredCommand(request);
                     return;
                 }
 
@@ -205,6 +214,38 @@ public sealed class ChatRequestQueue
             }
 
             if (_pendingCounts.TryUpdate(key, current - 1, current))
+            {
+                DecrementPendingConfiguredCommand(request);
+                return;
+            }
+        }
+    }
+
+    private void DecrementPendingConfiguredCommand(ChatRequest request)
+    {
+        if (request.ConfiguredCommandNumber is not int commandNumber)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            if (!_pendingConfiguredCommands.TryGetValue(commandNumber, out int current))
+            {
+                return;
+            }
+
+            if (current <= 1)
+            {
+                if (_pendingConfiguredCommands.TryRemove(commandNumber, out _))
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (_pendingConfiguredCommands.TryUpdate(commandNumber, current - 1, current))
             {
                 return;
             }
@@ -216,23 +257,20 @@ public sealed class ChatRequestQueue
         return _pendingCounts.TryGetValue(queueKey, out int count) ? count : 0;
     }
 
+    private int GetPendingConfiguredCommandCount(int commandNumber)
+    {
+        return _pendingConfiguredCommands.TryGetValue(commandNumber, out int count) ? count : 0;
+    }
+
     private static string GetQueueKey(ChatRequest request)
     {
-        return request.ConfiguredCommandNumber is null
-            ? GetBaseQueueKey(request.ChatId)
-            : GetCommandQueueKey(request.ConfiguredCommandNumber.Value);
+        return GetBaseQueueKey(request.ChatId);
     }
 
     private static string GetBaseQueueKey(long chatId)
     {
         return $"base:{chatId}";
     }
-
-    private static string GetCommandQueueKey(int commandNumber)
-    {
-        return $"command:{commandNumber}";
-    }
-
     private static RequestRuntimeState ToRuntimeState(bool isRunning, int pendingCount)
     {
         if (isRunning)
@@ -251,8 +289,8 @@ public sealed record ChatRequest(
     string? Username,
     string Text,
     string OpenCodeSessionId,
-    string? ConfiguredAgent,
-    string? WorkingDirectory,
+    string ConfiguredAgent,
+    string WorkingDirectory,
     string? ConfiguredCommandTitle,
     int? ConfiguredCommandNumber,
     bool IsAutomatic = false);

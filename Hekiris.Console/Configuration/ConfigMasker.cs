@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Hekiris.Configuration;
+namespace Hekiris.Infrastructure.Configuration;
 
 public static class ConfigMasker
 {

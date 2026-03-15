@@ -1,4 +1,4 @@
-namespace Hekiris.Application;
+namespace Hekiris.Core.Commands;
 
 public static class BridgeChatCommandParser
 {

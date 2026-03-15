@@ -12,14 +12,13 @@
     "RequestTimeoutSeconds": 300
   },
   "AccessControl": {
-    "AllowedUserIds": [],
-    "AllowedUsernames": []
+    "AllowedUserId": 123456789,
+    "AllowedUsername": "example_user"
   },
   "Runtime": {
     "QueueCapacityPerChat": 20,
     "TelegramRetryDelaySeconds": 5,
     "OpenCodeHealthCheckIntervalSeconds": 30,
-    "StartupSessionValidation": true,
     "RejectMessagesWhenStopping": true,
     "SkipPendingUpdatesOnStart": true
   },
@@ -27,9 +26,7 @@
     "TelegramChatId": 123456789,
     "OpenCodeSessionId": "ses_base_example",
     "Agent": "Nova",
-    "WorkingDirectory": "C:\\Users\\name\\Projects\\MyRepo",
-    "AllowedUserIds": [],
-    "AllowedUsernames": []
+    "WorkingDirectory": "C:\\Users\\name\\Projects\\MyRepo"
   },
   "Commands": [
     {

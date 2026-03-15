@@ -1,4 +1,3 @@
 <Solution>
   <Project Path="Hekiris.Console/Hekiris.Console.csproj" />
-  <Project Path="Hekiris.Console.Tests/Hekiris.Console.Tests.csproj" />
 </Solution>

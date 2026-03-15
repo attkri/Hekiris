@@ -1,4 +1,6 @@
-namespace Hekiris.Configuration;
+using Hekiris.Core.TimeLoop;
+
+namespace Hekiris.Infrastructure.Configuration;
 
 public sealed class AppConfigurationValidator
 {
@@ -55,6 +57,26 @@ public sealed class AppConfigurationValidator
             result.Add("Runtime.OpenCodeHealthCheckIntervalSeconds must be greater than 0.");
         }
 
+        if (options.AccessControl.AllowedUserId == 0)
+        {
+            result.Add("AccessControl.AllowedUserId must not be 0.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.AccessControl.AllowedUsername))
+        {
+            result.Add("AccessControl.AllowedUsername must not be empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.OpenCode.Username))
+        {
+            result.Add("OpenCode.Username must not be empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.Telegram.SecretSourcePath))
+        {
+            result.Add("Telegram.SecretSourcePath must not be empty.");
+        }
+
         ChatBindingOptions binding = options.Chat;
         if (binding is null)
         {
@@ -76,19 +98,18 @@ public sealed class AppConfigurationValidator
             result.Add($"OpenCodeSessionId for chat {binding.TelegramChatId} must start with 'ses'.");
         }
 
-        if (binding.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
+        if (string.IsNullOrWhiteSpace(binding.Agent))
         {
-            result.Add($"Chat.AllowedUsernames must not contain empty values.");
+            result.Add("Chat.Agent must not be empty.");
         }
 
-        if (!string.IsNullOrWhiteSpace(binding.WorkingDirectory) && !Path.IsPathRooted(binding.WorkingDirectory))
+        if (string.IsNullOrWhiteSpace(binding.WorkingDirectory))
+        {
+            result.Add("Chat.WorkingDirectory must not be empty.");
+        }
+        else if (!Path.IsPathRooted(binding.WorkingDirectory))
         {
             result.Add("Chat.WorkingDirectory must be an absolute path.");
-        }
-
-        if (options.AccessControl.AllowedUsernames.Any(username => string.IsNullOrWhiteSpace(username)))
-        {
-            result.Add("AccessControl.AllowedUsernames must not contain empty values.");
         }
 
         for (int index = 0; index < options.Commands.Count; index++)
@@ -127,7 +148,7 @@ public sealed class AppConfigurationValidator
                 {
                     try
                     {
-                        _ = Application.CommandTimeLoopScheduler.ParseInterval(command.TimeLoop.Interval);
+                        _ = CommandTimeLoopScheduler.ParseInterval(command.TimeLoop.Interval);
                     }
                     catch (FormatException exception)
                     {

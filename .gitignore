@@ -21,4 +21,5 @@ nul
 publish-out/**
 TestResults/**
 tmp/**
-**/MyMemory.Instruction.md
+**/MyMemory.Instruction.md.Temp/**
+coveragereport/**

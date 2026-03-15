@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Hekiris.Telegram;
+namespace Hekiris.Application;
 
 public class TelegramEnvelope
 {

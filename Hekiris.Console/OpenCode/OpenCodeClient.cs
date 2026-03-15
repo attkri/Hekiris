@@ -4,11 +4,12 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Hekiris.Configuration;
+using Hekiris.Application;
+using Hekiris.Infrastructure.Configuration;
 
-namespace Hekiris.OpenCode;
+namespace Hekiris.Infrastructure.OpenCode;
 
-public sealed class OpenCodeClient : IDisposable
+public sealed class OpenCodeClient : IBridgeOpenCodeClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -80,11 +81,11 @@ public sealed class OpenCodeClient : IDisposable
         return latestMessage?.Info?.Agent;
     }
 
-    public async Task<string> SendPromptAsync(
+    public async Task<OpenCodeMessageResponse> SendPromptAsync(
         string sessionId,
         string prompt,
-        string? agent,
-        string? workingDirectory,
+        string agent,
+        string workingDirectory,
         CancellationToken cancellationToken)
     {
         PromptRequest request = new()
@@ -97,14 +98,10 @@ public sealed class OpenCodeClient : IDisposable
                     Text = prompt,
                 },
             ],
-            Agent = string.IsNullOrWhiteSpace(agent) ? null : agent,
+            Agent = agent,
         };
 
-        string requestUri = $"session/{Uri.EscapeDataString(sessionId)}/message";
-        if (!string.IsNullOrWhiteSpace(workingDirectory))
-        {
-            requestUri += $"?directory={Uri.EscapeDataString(workingDirectory)}";
-        }
+        string requestUri = $"session/{Uri.EscapeDataString(sessionId)}/message?directory={Uri.EscapeDataString(workingDirectory)}";
 
         using HttpResponseMessage response = await _httpClient.PostAsJsonAsync(requestUri, request, SerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
@@ -112,7 +109,7 @@ public sealed class OpenCodeClient : IDisposable
         string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(responseBody))
         {
-            return string.Empty;
+            return OpenCodeMessageResponse.Empty;
         }
 
         PromptResponse? promptResponse = JsonSerializer.Deserialize<PromptResponse>(responseBody, SerializerOptions);
@@ -121,16 +118,10 @@ public sealed class OpenCodeClient : IDisposable
             throw new OpenCodeException("OpenCode returned no usable response.");
         }
 
-        string text = string.Join(
-            Environment.NewLine + Environment.NewLine,
-            promptResponse.Parts
-                .Where(part => string.Equals(part.Type, "text", StringComparison.OrdinalIgnoreCase))
-                .Select(part => part.Text)
-                .Where(textPart => !string.IsNullOrWhiteSpace(textPart)));
-
-        if (!string.IsNullOrWhiteSpace(text))
+        OpenCodeMessageResponse formattedResponse = BuildMessageResponse(promptResponse.Parts);
+        if (!string.IsNullOrWhiteSpace(formattedResponse.Text))
         {
-            return text;
+            return formattedResponse;
         }
 
         if (!string.IsNullOrWhiteSpace(promptResponse.Info?.Error))
@@ -138,7 +129,7 @@ public sealed class OpenCodeClient : IDisposable
             throw new OpenCodeException(promptResponse.Info.Error);
         }
 
-        return string.Empty;
+        return OpenCodeMessageResponse.Empty;
     }
 
     public async Task AbortSessionAsync(string sessionId, CancellationToken cancellationToken)
@@ -192,6 +183,33 @@ public sealed class OpenCodeClient : IDisposable
 
         _ = await response.Content.ReadAsStringAsync(cancellationToken);
         throw new OpenCodeException($"HTTP {(int)response.StatusCode} returned by OpenCode.");
+    }
+
+    private static OpenCodeMessageResponse BuildMessageResponse(IEnumerable<TextPart> parts)
+    {
+        List<TextPart> relevantParts = parts
+            .Where(part => !string.IsNullOrWhiteSpace(part.Text))
+            .Where(part => string.Equals(part.Type, "text", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(part.Type, "html", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(part.Type, "json", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (relevantParts.Count == 0)
+        {
+            return OpenCodeMessageResponse.Empty;
+        }
+
+        bool isPureHtml = relevantParts.All(part => string.Equals(part.Type, "html", StringComparison.OrdinalIgnoreCase));
+        bool isPureJson = relevantParts.All(part => string.Equals(part.Type, "json", StringComparison.OrdinalIgnoreCase));
+        string text = string.Join(Environment.NewLine + Environment.NewLine, relevantParts.Select(part => part.Text));
+
+        BridgeMessageFormat format = isPureHtml
+            ? BridgeMessageFormat.Html
+            : isPureJson
+                ? BridgeMessageFormat.Json
+                : BridgeMessageFormat.PlainText;
+
+        return new OpenCodeMessageResponse(text, format);
     }
 
     private sealed class PromptRequest
@@ -256,23 +274,6 @@ public sealed class OpenCodeClient : IDisposable
     {
         [JsonPropertyName("created")]
         public long? Created { get; set; }
-    }
-}
-
-public sealed class OpenCodeHealth
-{
-    [JsonPropertyName("healthy")]
-    public bool Healthy { get; set; }
-
-    [JsonPropertyName("version")]
-    public string Version { get; set; } = string.Empty;
-}
-
-public sealed class OpenCodeException : Exception
-{
-    public OpenCodeException(string message)
-        : base(message)
-    {
     }
 }
 

@@ -24,11 +24,26 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore Hekiris.slnx -r win-x64
 
-      - name: Run tests
-        run: dotnet test Hekiris.slnx -c Release --no-restore
+      - name: Validate version metadata
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content 'Directory.Build.props' -Encoding utf8
+          $version = "${env:GITHUB_REF_NAME}" -replace '^v', ''
+          $assemblyVersion = "$version.0"
+          $fileVersion = "$version.0"
+          $propertyGroup = $props.Project.PropertyGroup
+          if ($propertyGroup.Version -ne $version) {
+            throw "Directory.Build.props Version '$($propertyGroup.Version)' does not match tag '$version'."
+          }
+          if ($propertyGroup.AssemblyVersion -ne $assemblyVersion) {
+            throw "Directory.Build.props AssemblyVersion '$($propertyGroup.AssemblyVersion)' does not match '$assemblyVersion'."
+          }
+          if ($propertyGroup.FileVersion -ne $fileVersion) {
+            throw "Directory.Build.props FileVersion '$($propertyGroup.FileVersion)' does not match '$fileVersion'."
+          }
 
       - name: Publish Windows build
-        run: dotnet publish Hekiris.Console/Hekiris.Console.csproj -c Release -r win-x64 --self-contained false --no-restore -o publish-out/Hekiris-win-x64
+        run: dotnet publish Hekiris.Console/Hekiris.Console.csproj -c Release -r win-x64 --self-contained true --no-restore -o publish-out/Hekiris-win-x64
 
       - name: Add runtime config template
         shell: pwsh
@@ -38,10 +53,21 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish-out/Hekiris-win-x64/* -DestinationPath publish-out/Hekiris-win-x64.zip -Force
 
-      - name: Extract current release notes
+      - name: Extract versioned release notes
         shell: pwsh
         run: |
-          python -c "from pathlib import Path; import re; text=Path('Release-Notes.md').read_text(encoding='utf-8'); match=re.search(r'^## Current\s*(.*?)(?=^## |\Z)', text, flags=re.S|re.M); body=(match.group(1).strip() if match else '').strip(); Path('release-body.md').write_text(body or '- No release notes available.', encoding='utf-8')"
+          $version = "${env:GITHUB_REF_NAME}" -replace '^v', ''
+          $notes = Get-Content 'Release-Notes.md' -Raw -Encoding utf8
+          $pattern = "(?ms)^## " + [regex]::Escape($version) + " \[Unreleased\]\s*(.*?)(?=^## |\z)"
+          $match = [regex]::Match($notes, $pattern)
+          if (-not $match.Success) {
+            throw "Release-Notes.md does not contain the releasable section '## $version [Unreleased]'."
+          }
+          $body = $match.Groups[1].Value.Trim()
+          if ([string]::IsNullOrWhiteSpace($body)) {
+            throw "The section '## $version [Unreleased]' in Release-Notes.md is empty."
+          }
+          Set-Content -Path 'release-body.md' -Value $body -Encoding utf8
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

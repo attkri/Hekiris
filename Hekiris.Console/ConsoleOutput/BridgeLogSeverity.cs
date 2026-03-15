@@ -1,4 +1,4 @@
-namespace Hekiris.ConsoleOutput;
+namespace Hekiris.Application;
 
 public enum BridgeLogSeverity
 {

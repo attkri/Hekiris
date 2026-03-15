@@ -1,6 +1,8 @@
 using System.Text;
+using Hekiris.Application;
+using Hekiris.Infrastructure.Configuration;
 
-namespace Hekiris.ConsoleOutput;
+namespace Hekiris.Infrastructure.Logging;
 
 public sealed class CsvBridgeLogger
 {
@@ -11,7 +13,7 @@ public sealed class CsvBridgeLogger
 
     public CsvBridgeLogger(string? directoryPath = null, Func<DateTime>? nowProvider = null)
     {
-        _directoryPath = directoryPath ?? Configuration.BridgePaths.GetLogDirectoryPath();
+        _directoryPath = directoryPath ?? BridgePaths.GetLogDirectoryPath();
         _nowProvider = nowProvider ?? (() => DateTime.Now);
         Directory.CreateDirectory(_directoryPath);
     }

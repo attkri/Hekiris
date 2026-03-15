@@ -2,11 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Hekiris.Configuration;
+using Hekiris.Application;
+using Hekiris.Infrastructure.Configuration;
 
-namespace Hekiris.Telegram;
+namespace Hekiris.Infrastructure.Telegram;
 
-public sealed class TelegramBotClient : IDisposable
+public sealed class TelegramBotClient : IBridgeTelegramClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -55,11 +56,36 @@ public sealed class TelegramBotClient : IDisposable
         return response?.Result ?? new List<TelegramUpdate>();
     }
 
-    public async Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken)
+    public async Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken, BridgeMessageFormat format = BridgeMessageFormat.PlainText)
     {
-        foreach (string chunk in SplitMessage(text))
+        string effectiveText = text;
+        BridgeMessageFormat effectiveFormat = format;
+
+        if (format == BridgeMessageFormat.Html && text.Length > 3500)
         {
-            await PostAsync<object, TelegramEnvelope<TelegramMessage>>("sendMessage", new { chat_id = chatId, text = chunk }, cancellationToken);
+            effectiveText = HtmlStripper.Strip(text);
+            effectiveFormat = BridgeMessageFormat.PlainText;
+        }
+
+        // Telegram rejects parse_mode when sent as null or empty string (HTTP 400: unsupported parse_mode).
+        // The field must be completely absent from the JSON body for plain text messages.
+        // Do NOT refactor this into a single call with a conditional parse_mode value.
+        foreach (string chunk in SplitMessage(effectiveText))
+        {
+            if (effectiveFormat == BridgeMessageFormat.Html)
+            {
+                await PostAsync<object, TelegramEnvelope<TelegramMessage>>(
+                    "sendMessage",
+                    new { chat_id = chatId, text = chunk, parse_mode = "HTML" },
+                    cancellationToken);
+            }
+            else
+            {
+                await PostAsync<object, TelegramEnvelope<TelegramMessage>>(
+                    "sendMessage",
+                    new { chat_id = chatId, text = chunk },
+                    cancellationToken);
+            }
         }
     }
 
@@ -147,5 +173,36 @@ public sealed class TelegramException : Exception
     public TelegramException(string message)
         : base(message)
     {
+    }
+}
+
+internal static class HtmlStripper
+{
+    public static string Strip(string html)
+    {
+        StringBuilder builder = new();
+        bool insideTag = false;
+
+        foreach (char character in html)
+        {
+            if (character == '<')
+            {
+                insideTag = true;
+                continue;
+            }
+
+            if (character == '>')
+            {
+                insideTag = false;
+                continue;
+            }
+
+            if (!insideTag)
+            {
+                builder.Append(character);
+            }
+        }
+
+        return WebUtility.HtmlDecode(builder.ToString());
     }
 }

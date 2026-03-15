@@ -1,6 +1,8 @@
-namespace Hekiris.ConsoleOutput;
+using Hekiris.Application;
 
-public sealed class ConsoleTranscriptWriter
+namespace Hekiris.Infrastructure.Logging;
+
+public sealed class ConsoleTranscriptWriter : IBridgeConsole
 {
     private readonly object _sync = new();
     private readonly CsvBridgeLogger _csvLogger;
@@ -30,7 +32,33 @@ public sealed class ConsoleTranscriptWriter
     {
         lock (_sync)
         {
-            System.Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] BRIDGE:");
+            System.Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] HEKIRIS:");
+            System.Console.WriteLine(message);
+            System.Console.WriteLine();
+            _csvLogger.Write(BridgeLogSeverity.Info, message);
+        }
+    }
+
+    public void WriteStatus(IEnumerable<string> lines)
+    {
+        lock (_sync)
+        {
+            System.Console.WriteLine("STATUS:");
+
+            foreach (string line in lines)
+            {
+                System.Console.WriteLine(line);
+                _csvLogger.Write(BridgeLogSeverity.Info, line);
+            }
+
+            System.Console.WriteLine();
+        }
+    }
+
+    public void WritePlainInfo(string message)
+    {
+        lock (_sync)
+        {
             System.Console.WriteLine(message);
             System.Console.WriteLine();
             _csvLogger.Write(BridgeLogSeverity.Info, message);
