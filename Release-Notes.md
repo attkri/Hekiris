@@ -1,6 +1,8 @@
 # Release Notes
 
-## 0.2.0 [Unreleased]
+## [Unreleased]
+
+## 0.2.0
 
 - **Breaking:** Access control now uses a single allowed user instead of lists. Replace `AllowedUserIds` and `AllowedUsernames` with `AllowedUserId` and `AllowedUsername` in your config file.
 
